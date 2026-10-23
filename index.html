@@ -5,181 +5,281 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mastan Shah Software</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:#eef2f7;color:#172b4d}
-header{background:#123b63;color:white;padding:20px}
-header h1{margin:0}
-nav{display:flex;gap:8px;overflow:auto;padding:12px;background:white}
-button{padding:10px 14px;border:0;border-radius:7px;background:#1769aa;color:white;cursor:pointer}
-nav button{white-space:nowrap}
-main{padding:15px;max-width:1100px;margin:auto}
-.card{background:white;padding:16px;border-radius:12px;margin-bottom:15px;box-shadow:0 2px 8px #0001}
-input,select{width:100%;padding:10px;margin:5px 0 12px;border:1px solid #ccd5e0;border-radius:6px}
-label{font-size:13px;font-weight:bold}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-table{width:100%;border-collapse:collapse;min-width:500px}
-th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}
-.scroll{overflow:auto}
-.small{color:#63758b;font-size:13px}
+:root{font-family:Arial,sans-serif;color:#172033;background:#f1f5f9}
+*{box-sizing:border-box}body{margin:0}header{background:#123b69;color:white;padding:18px}
+header h2{margin:0 0 6px}.wrap{max-width:1100px;margin:auto;padding:14px}
+.card{background:white;padding:16px;border-radius:12px;margin:12px 0;box-shadow:0 2px 8px #0001}
+input,select,button{font:inherit;padding:11px;margin:5px 0;border-radius:7px;border:1px solid #cbd5e1;width:100%}
+button{background:#1769aa;color:white;border:0;cursor:pointer;font-weight:bold}
+button.secondary{background:#475569}.tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.tabs button{font-size:14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.small{font-size:13px;color:#64748b}.item{border-bottom:1px solid #e2e8f0;padding:10px 0;overflow-wrap:anywhere}
+.hidden{display:none}.danger{background:#b91c1c}h3{margin-top:0}
+@media(min-width:700px){.tabs{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style>
 </head>
 <body>
 <header>
-<h1>🏪 Mastan Shah Software</h1>
-<p>Retail & Wholesale | Afghanistan | USD + AFN</p>
+  <h2>Mastan Shah Software</h2>
+  <div>Online Accounts • Stock • Godam • USD / AFN</div>
 </header>
-<nav id="nav"></nav>
-<main id="app"></main>
+<div class="wrap">
+  <section id="login" class="card">
+    <h3>Admin Login</h3>
+    <p class="small">Use the email and password created in Supabase Authentication.</p>
+    <input id="email" type="email" placeholder="Admin email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <div id="loginMsg" class="small"></div>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="card">
+      <div id="who" class="small"></div>
+      <button class="secondary" onclick="logout()">Logout</button>
+    </div>
+    <div class="tabs">
+      <button onclick="page('dashboard')">Dashboard</button>
+      <button onclick="page('customers')">Customers</button>
+      <button onclick="page('suppliers')">Suppliers</button>
+      <button onclick="page('items')">Stock Items</button>
+      <button onclick="page('godowns')">Godams</button>
+      <button onclick="page('invoice')">Sale / Purchase</button>
+      <button onclick="page('payments')">Payments</button>
+      <button onclick="page('exchange')">USD / AFN Exchange</button>
+      <button onclick="page('ledger')">Cash Ledger</button>
+      <button onclick="page('reports')">Reports / Print</button>
+    </div>
+    <div id="content" class="card"></div>
+  </section>
+</div>
+
 <script>
-const pages=[
-"Dashboard","Customers","Suppliers","Both",
-"Sale Invoice","Purchase Invoice","Payments",
-"Stock Items","Godams","Stock Transfer",
-"Currency Exchange","Cash Ledger","Reports"
-];
-let data;
-try{data=JSON.parse(localStorage.getItem("mastanDemo"))||null}catch(e){}
-if(!data)data={
-customers:[],suppliers:[],items:[],
-godams:["Shop"],entries:[],usd:0,afn:0,rate:70
-};
-let current="Dashboard";
-const save=()=>localStorage.setItem("mastanDemo",JSON.stringify(data));
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const usd=n=>Number(n||0).toFixed(2)+" USD";
-const afn=n=>Number(n||0).toFixed(2)+" AFN";
-function nav(){
-document.getElementById("nav").innerHTML=pages.map(p=>
-`<button onclick="show('${p}')">${p}</button>`).join("");
+const SUPABASE_URL = "https://mcvahsaxynfgmcjkhdku.supabase.co";
+const SUPABASE_KEY = "sb_publishable_pX8Jn58bNOn_Lpf2DOoBHA_78MuE6yB";
+const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null, currentPage="dashboard";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = n => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2});
+const msg = (s) => `<p class="small">${esc(s)}</p>`;
+const field = (id,label,type="text",placeholder="") =>
+  `<label>${label}<input id="${id}" type="${type}" placeholder="${placeholder}"></label>`;
+const select = (id,label,options) =>
+  `<label>${label}<select id="${id}">${options.map(o=>`<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("")}</select></label>`;
+const val = id => $(id).value.trim();
+
+async function login(){
+  $("loginMsg").textContent="Signing in...";
+  const {error}=await db.auth.signInWithPassword({
+    email:val("email"),password:val("password")
+  });
+  $("loginMsg").textContent=error?error.message:"";
+  await checkSession();
 }
-function field(label,name,type="text",value=""){
-return `<label>${label}</label><input name="${name}" type="${type}" value="${esc(value)}">`;
+async function logout(){await db.auth.signOut();await checkSession();}
+async function checkSession(){
+  const {data}=await db.auth.getSession();
+  currentUser=data.session?.user||null;
+  $("login").classList.toggle("hidden",!!currentUser);
+  $("app").classList.toggle("hidden",!currentUser);
+  if(currentUser){$("who").textContent="Logged in: "+currentUser.email;await page(currentPage);}
 }
-function select(label,name,items){
-return `<label>${label}</label><select name="${name}"><option value="">Select</option>${items.map(x=>`<option>${esc(x)}</option>`).join("")}</select>`;
+db.auth.onAuthStateChange(()=>setTimeout(checkSession,0));
+
+async function rows(table,order="created_at"){
+  let q=db.from(table).select("*");
+  if(order) q=q.order(order,{ascending:false});
+  const {data,error}=await q;
+  if(error) throw error;
+  return data||[];
 }
-function table(heads,rows){
-return `<div class="scroll"><table><thead><tr>${heads.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.length?rows.join(""):`<tr><td colspan="${heads.length}">No records yet</td></tr>`}</tbody></table></div>`;
+async function insert(table,record){
+  const {error}=await db.from(table).insert(record);
+  if(error) throw error;
 }
-function row(cells){return `<tr>${cells.map(x=>`<td>${x}</td>`).join("")}</tr>`}
-function show(p){
-current=p;nav();let html="";
-if(p==="Dashboard"){
-html=`<div class="grid">
-<div class="card"><h3>Customers</h3><h2>${data.customers.length}</h2></div>
-<div class="card"><h3>Suppliers</h3><h2>${data.suppliers.length}</h2></div>
-<div class="card"><h3>USD Cash</h3><h2>${usd(data.usd)}</h2></div>
-<div class="card"><h3>AFN Cash</h3><h2>${afn(data.afn)}</h2></div></div>
-<div class="card"><h2>Welcome</h2>
-<p>Demo version. Add customers, suppliers, stock and godams before entering transactions.</p>
-<p class="small">Data is saved only in this browser on this device. Shared online database is not connected.</p></div>`;
-}else if(["Customers","Suppliers","Both"].includes(p)){
-html=`<div class="card"><h2>Add ${p}</h2><form id="f">
-${field("Name","name")}${field("Address","address")}
-${field("Phone / WhatsApp","phone","tel")}
-${field("Opening Balance","opening","number","0")}
-${select("Currency","currency",["USD","AFN"])}
-<button>Save</button></form></div>
-<div class="card"><h2>${p} List</h2>${table(["Name","Phone","Address","Opening Balance"],(p==="Suppliers"?data.suppliers:data.customers).map(x=>row([esc(x.name),esc(x.phone),esc(x.address),x.opening+" "+x.currency])))}</div>`;
-}else if(p==="Stock Items"){
-html=`<div class="card"><h2>Add Stock Item</h2><form id="f">
-${field("Item Name","name")}
-${select("Godam","godam",data.godams)}
-${field("Opening Quantity","qty","number","0")}
-${field("Cost per Item USD","cost","number","0")}
-<button>Save Item</button></form></div>
-<div class="card"><h2>Stock List</h2>${table(["Item","Godam","Opening Qty","Cost USD"],data.items.map(x=>row([esc(x.name),esc(x.godam),x.qty,usd(x.cost)])))}</div>`;
-}else if(p==="Godams"){
-html=`<div class="card"><h2>Add Godam</h2><form id="f">
-${field("Godam Name","name")}${field("Address","address")}
-<button>Add Godam</button></form></div>
-<div class="card"><h2>Godams</h2>${table(["Godam"],data.godams.map(x=>row([esc(x)])))}</div>`;
-}else if(p==="Payments"){
-html=`<div class="card"><h2>Record Payment</h2><form id="f">
-${select("Payment Type","type",["Receive from Customer","Give to Customer","Receive from Supplier","Pay Supplier"])}
-${field("Party Name","party")}${field("Amount","amount","number","0")}
-${select("Currency","currency",["USD","AFN"])}
-${field("Date","date","date",new Date().toISOString().slice(0,10))}
-<button>Save Payment</button></form></div>
-<div class="card"><h2>Payment History</h2>${table(["Date","Type","Party","Amount","Currency"],data.entries.filter(x=>x.kind==="Payment").map(x=>row([x.date,x.type,esc(x.party),x.amount,x.currency])))}</div>`;
-}else if(p==="Sale Invoice"||p==="Purchase Invoice"){
-let isSale=p==="Sale Invoice";
-html=`<div class="card"><h2>${p}</h2><form id="f">
-${select(isSale?"Customer":"Supplier","party",(isSale?data.customers:data.suppliers).map(x=>x.name))}
-${select("Item","item",data.items.map(x=>x.name))}
-${field("Quantity","qty","number","1")}
-${field("Rate USD","rate","number","0")}
-${field("Discount USD","discount","number","0")}
-${field("Date","date","date",new Date().toISOString().slice(0,10))}
-<button>Save Invoice</button></form>
-<p class="small">This starter demo does not yet automatically update every linked ledger or stock balance.</p></div>
-<div class="card"><h2>Invoice History</h2>${table(["Date","Type","Party","Item","Qty","Total USD"],data.entries.filter(x=>x.kind==="Sale"||x.kind==="Purchase").map(x=>row([x.date,x.kind,esc(x.party),esc(x.item),x.qty,usd(x.total)])))}</div>`;
-}else if(p==="Currency Exchange"){
-html=`<div class="card"><h2>Currency Exchange</h2><form id="f">
-${field("AFN for 1 USD","rate","number",data.rate)}
-${select("Direction","direction",["USD to AFN","AFN to USD"])}
-${field("Amount","amount","number","1")}
-<button>Exchange</button></form>
-<p>Current rate: 1 USD = ${data.rate} AFN</p>
-<p>USD Cash: ${usd(data.usd)} | AFN Cash: ${afn(data.afn)}</p></div>`;
-}else if(p==="Stock Transfer"){
-html=`<div class="card"><h2>Stock Transfer</h2><p>Select a source and destination godam to plan a transfer. Full automatic stock movement is not yet implemented in this starter demo.</p><form id="f">
-${select("Item","item",data.items.map(x=>x.name))}
-${select("From Godam","from",data.godams)}
-${select("To Godam","to",data.godams)}
-${field("Quantity","qty","number","1")}
-<button>Save Transfer Record</button></form></div>`;
-}else if(p==="Cash Ledger"){
-html=`<div class="card"><h2>Cash Balances</h2>
-<h3>USD: ${usd(data.usd)}</h3><h3>AFN: ${afn(data.afn)}</h3>
-${table(["Date","Type","Details","Amount","Currency"],data.entries.map(x=>row([x.date,x.kind,esc(x.party||x.item||x.type||""),x.total??x.amount,x.currency||"USD"])))}</div>`;
-}else if(p==="Reports"){
-html=`<div class="card"><h2>Reports</h2>
-<p>Print or save the current demo report as PDF using your browser.</p>
-<button onclick="window.print()">Print / Save PDF</button>
-<button onclick="share()">Share via WhatsApp</button>
-${table(["Date","Type","Details","Total"],data.entries.map(x=>row([x.date,x.kind,esc(x.party||x.item||x.type||""),x.total??x.amount])))}
-</div>`;
+function run(fn){
+  Promise.resolve().then(fn).catch(e=>alert("Error: "+(e.message||e)));
 }
-document.getElementById("app").innerHTML=html;
-const f=document.getElementById("f");
-if(f)f.onsubmit=e=>{
-e.preventDefault();const d=Object.fromEntries(new FormData(f).entries());
-if(p==="Customers"||p==="Suppliers"||p==="Both"){
-let x={...d,opening:Number(d.opening||0)};
-if(p==="Suppliers")data.suppliers.push(x);
-else if(p==="Both"){data.customers.push({...x});data.suppliers.push({...x})}
-else data.customers.push(x);
-}else if(p==="Stock Items"){
-data.items.push({...d,qty:Number(d.qty||0),cost:Number(d.cost||0)});
-}else if(p==="Godams"){
-if(d.name&&!data.godams.includes(d.name))data.godams.push(d.name);
-}else if(p==="Payments"){
-let amount=Number(d.amount||0),incoming=d.type.startsWith("Receive");
-if(d.currency==="USD")data.usd+=incoming?amount:-amount;
-else data.afn+=incoming?amount:-amount;
-data.entries.push({...d,amount,kind:"Payment"});
-}else if(p==="Sale Invoice"||p==="Purchase Invoice"){
-let qty=Number(d.qty||0),rate=Number(d.rate||0),discount=Number(d.discount||0);
-let total=Math.max(0,qty*rate-discount);
-data.entries.push({...d,qty,rate,discount,total,kind:p==="Sale Invoice"?"Sale":"Purchase"});
-}else if(p==="Currency Exchange"){
-data.rate=Number(d.rate||data.rate);
-let amount=Number(d.amount||0);
-if(d.direction==="USD to AFN"){data.usd-=amount;data.afn+=amount*data.rate}
-else{data.afn-=amount;data.usd+=amount/data.rate}
-}else if(p==="Stock Transfer"){
-data.entries.push({...d,kind:"Stock Transfer",date:new Date().toISOString().slice(0,10)});
+async function page(name){
+  currentPage=name;
+  if(!currentUser)return;
+  const c=$("content");
+  c.innerHTML="<h3>Loading...</h3>";
+  try{
+    if(name==="dashboard"){
+      const [cs,ss,its,gs,inv]=await Promise.all([
+        rows("customers"),rows("suppliers"),rows("stock_items"),rows("godowns"),rows("invoices")
+      ]);
+      c.innerHTML=`<h3>Dashboard</h3><div class="grid">
+      ${stat("Customers",cs.length)}${stat("Suppliers",ss.length)}
+      ${stat("Stock Items",its.length)}${stat("Godams",gs.length)}
+      ${stat("Invoices",inv.length)}</div>
+      ${msg("Online database connected. Use the menu to enter records.")}`;
+    }
+    if(name==="customers"||name==="suppliers"){
+      const isC=name==="customers",table=name,title=isC?"Customers":"Suppliers";
+      c.innerHTML=`<h3>${title}</h3><div class="grid">
+      ${field("pname","Name")}${field("phone","Phone")}
+      ${field("address","Address")}${field("opening","Opening balance","number","0")}
+      ${select("currency","Currency",currencies())}</div>
+      <button onclick="run(()=>addParty('${table}'))">Save ${isC?"Customer":"Supplier"}</button>
+      <div id="list"></div>`;
+      const data=await rows(table);
+      $("list").innerHTML=data.map(x=>`<div class="item"><b>${esc(x.name)}</b>
+      <br>${esc(x.phone||"")} · ${esc(x.currency)} · Opening: ${money(x.opening_balance)}
+      <br><span class="small">${esc(x.address||"")}</span></div>`).join("")||msg("No records yet.");
+    }
+    if(name==="items"){
+      c.innerHTML=`<h3>Stock Items</h3>${field("iname","Item name")}${field("unit","Unit (piece, box...)")}
+      <button onclick="run(addItem)">Save Item</button><div id="list"></div>`;
+      const data=await rows("stock_items");
+      $("list").innerHTML=data.map(x=>`<div class="item"><b>${esc(x.name)}</b> — ${esc(x.unit||"piece")}</div>`).join("")||msg("No items yet.");
+    }
+    if(name==="godowns"){
+      c.innerHTML=`<h3>Godams</h3>${field("gname","Godam name")}
+      <button onclick="run(addGodown)">Save Godam</button><div id="list"></div>`;
+      const data=await rows("godowns");
+      $("list").innerHTML=data.map(x=>`<div class="item">${esc(x.name)}</div>`).join("")||msg("No godams yet.");
+    }
+    if(name==="invoice"){
+      const [parties,items,gs]=await Promise.all([
+        rows("customers"),rows("stock_items"),rows("godowns")
+      ]);
+      c.innerHTML=`<h3>Sale / Purchase Invoice</h3>
+      ${select("itype","Invoice type",[{value:"sale",label:"Sale"},{value:"purchase",label:"Purchase"}])}
+      ${field("inum","Invoice number")}${select("iparty","Customer / Supplier",parties.map(p=>({value:p.id,label:p.name})))}
+      ${select("igodam","Godam",gs.map(g=>({value:g.id,label:g.name})))}
+      ${select("iitem","Item",items.map(i=>({value:i.id,label:i.name})))}
+      <div class="grid">${field("iqty","Quantity","number","1")}${field("iprice","Unit price","number","0")}</div>
+      ${select("icur","Currency",currencies())}${field("idate","Date","date",new Date().toISOString().slice(0,10))}
+      <button onclick="run(saveInvoice)">Save Invoice</button>
+      <p class="small">One item per invoice entry. Sale reduces stock; purchase increases stock.</p>`;
+    }
+    if(name==="payments"){
+      const [cs,ss]=await Promise.all([rows("customers"),rows("suppliers")]);
+      c.innerHTML=`<h3>Party Payment</h3>
+      ${select("ptype","Party type",[{value:"customer",label:"Customer"},{value:"supplier",label:"Supplier"}])}
+      ${select("pparty","Party",[...cs.map(p=>({value:p.id,label:"Customer: "+p.name})),...ss.map(p=>({value:p.id,label:"Supplier: "+p.name}))])}
+      ${select("paytype","Payment",[{value:"received",label:"Received from party"},{value:"paid",label:"Paid to party"}])}
+      <div class="grid">${field("pamount","Amount","number","0")}${select("pcurrency","Currency",currencies())}</div>
+      ${field("pdetails","Details / reference")}
+      <button onclick="run(savePayment)">Save Payment</button>`;
+    }
+    if(name==="exchange"){
+      c.innerHTML=`<h3>Currency Exchange</h3>
+      ${select("direction","Direction",[{value:"USD_AFN",label:"USD → AFN"},{value:"AFN_USD",label:"AFN → USD"}])}
+      ${field("examount","Amount to exchange","number","0")}
+      ${field("exrate","Rate (AFN per USD)","number","70")}
+      ${field("exref","Reference / details")}
+      <button onclick="run(saveExchange)">Save Exchange</button>
+      <p class="small">For USD → AFN, enter the USD amount. For AFN → USD, enter the AFN amount.</p>`;
+    }
+    if(name==="ledger"){
+      const data=await rows("cash_movements","movement_date");
+      c.innerHTML=`<h3>Cash Ledger</h3><div id="list"></div>`;
+      $("list").innerHTML=data.map(x=>`<div class="item"><b>${esc(x.currency)} ${money(x.amount)}</b>
+      — ${esc(x.movement_type)}<br>${esc(x.reference||"")}<br>
+      <span class="small">${esc(x.movement_date||"")}</span></div>`).join("")||msg("No cash entries yet.");
+    }
+    if(name==="reports"){
+      const [inv,stock,cs,ss,cash]=await Promise.all([
+        rows("invoices"),rows("stock_items"),rows("customers"),rows("suppliers"),rows("cash_movements","movement_date")
+      ]);
+      c.innerHTML=`<h3>Reports</h3><p>Invoices: ${inv.length}</p>
+      <p>Stock items: ${stock.length}</p><p>Customers: ${cs.length}</p>
+      <p>Suppliers: ${ss.length}</p><p>Cash entries: ${cash.length}</p>
+      <button onclick="window.print()">Print / Save PDF</button>`;
+    }
+  }catch(e){c.innerHTML=`<h3>Could not load data</h3>${msg(e.message)}${msg("Check that the Supabase SQL policies have been added.")}`;}
 }
-save();show(p);alert("Saved in this browser demo");
-};
+function stat(label,n){return `<div class="card"><div class="small">${label}</div><h2>${n}</h2></div>`;}
+function currencies(){return [{value:"USD",label:"USD"},{value:"AFN",label:"AFN"}];}
+
+async function addParty(table){
+  if(!val("pname"))throw Error("Name is required.");
+  await insert(table,{name:val("pname"),phone:val("phone")||null,address:val("address")||null,
+    opening_balance:Number(val("opening")||0),currency:val("currency")});
+  alert("Saved");await page(currentPage);
 }
-function share(){
-let text="Mastan Shah Software Demo Report\\n"+data.entries.map(x=>x.date+" | "+x.kind+" | "+(x.party||x.item||"")+" | "+(x.total??x.amount??"")).join("\\n");
-location.href="https://wa.me/?text="+encodeURIComponent(text);
+async function addItem(){
+  if(!val("iname"))throw Error("Item name is required.");
+  await insert("stock_items",{name:val("iname"),unit:val("unit")||"piece"});
+  alert("Saved");await page("items");
 }
-show("Dashboard");
+async function addGodown(){
+  if(!val("gname"))throw Error("Godam name is required.");
+  await insert("godowns",{name:val("gname")});
+  alert("Saved");await page("godowns");
+}
+async function saveInvoice(){
+  const type=val("itype"),qty=Number(val("iqty")),price=Number(val("iprice"));
+  if(!val("igodam")||!val("iitem")||!val("iparty"))throw Error("Select party, item and godam.");
+  if(qty<=0||price<0)throw Error("Enter a valid quantity and price.");
+  const total=qty*price,partyTable=type==="sale"?"customers":"suppliers";
+  const {data:party,error:pe}=await db.from(partyTable).select("*").eq("id",val("iparty")).single();
+  if(pe)throw pe;
+  const {data:inv,error:ie}=await db.from("invoices").insert({
+    invoice_type:type,invoice_number:val("inum")||null,party_name:party.name,
+    godown_id:val("igodam"),invoice_date:val("idate")||new Date().toISOString().slice(0,10),
+    currency:val("icur"),total
+  }).select().single();
+  if(ie)throw ie;
+  const {error:le}=await db.from("invoice_lines").insert({
+    invoice_id:inv.id,item_id:val("iitem"),quantity:qty,unit_price:price
+  });
+  if(le)throw le;
+  const {error:se}=await db.from("stock_movements").insert({
+    item_id:val("iitem"),godown_id:val("igodam"),
+    movement_type:type==="sale"?"out":"in",quantity:qty,
+    reference:val("inum")||inv.id
+  });
+  if(se)throw se;
+  const {error:pe2}=await db.from("party_ledger_entries").insert({
+    party_type:type==="sale"?"customer":"supplier",party_id:party.id,
+    entry_type:type,amount:total,currency:val("icur"),
+    details:"Invoice "+(val("inum")||inv.id)
+  });
+  if(pe2)throw pe2;
+  alert("Invoice saved. Check stock and party ledger.");
+  await page("invoice");
+}
+async function savePayment(){
+  const amount=Number(val("pamount"));
+  if(amount<=0||!val("pparty"))throw Error("Select a party and enter a valid amount.");
+  const isReceived=val("paytype")==="received";
+  const ptype=val("ptype");
+  const {error}=await db.from("party_ledger_entries").insert({
+    party_type:ptype,party_id:val("pparty"),
+    entry_type:isReceived?"payment_received":"payment_paid",
+    amount,currency:val("pcurrency"),details:val("pdetails")||"Payment"
+  });
+  if(error)throw error;
+  const {error:ce}=await db.from("cash_movements").insert({
+    currency:val("pcurrency"),movement_type:isReceived?"in":"out",
+    amount,reference:val("pdetails")||"Party payment"
+  });
+  if(ce)throw ce;
+  alert("Payment saved");await page("payments");
+}
+async function saveExchange(){
+  const amount=Number(val("examount")),rate=Number(val("exrate"));
+  if(amount<=0||rate<=0)throw Error("Amount and rate must be greater than zero.");
+  const dir=val("direction"),usd=dir==="USD_AFN"?amount:amount/rate;
+  const afn=dir==="USD_AFN"?amount*rate:amount;
+  const ref=val("exref")||"Currency exchange";
+  const records=[
+    {currency:"USD",movement_type:"out",amount:usd,reference:ref+" (USD exchanged)"},
+    {currency:"AFN",movement_type:"in",amount:afn,reference:ref+" (AFN received)"}
+  ];
+  const {error}=await db.from("cash_movements").insert(records);
+  if(error)throw error;
+  alert("Exchange saved");await page("exchange");
+}
+checkSession();
 </script>
 </body>
 </html>
