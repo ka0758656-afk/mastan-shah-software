@@ -1,0 +1,185 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mastan Shah Software</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#eef2f7;color:#172b4d}
+header{background:#123b63;color:white;padding:20px}
+header h1{margin:0}
+nav{display:flex;gap:8px;overflow:auto;padding:12px;background:white}
+button{padding:10px 14px;border:0;border-radius:7px;background:#1769aa;color:white;cursor:pointer}
+nav button{white-space:nowrap}
+main{padding:15px;max-width:1100px;margin:auto}
+.card{background:white;padding:16px;border-radius:12px;margin-bottom:15px;box-shadow:0 2px 8px #0001}
+input,select{width:100%;padding:10px;margin:5px 0 12px;border:1px solid #ccd5e0;border-radius:6px}
+label{font-size:13px;font-weight:bold}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+table{width:100%;border-collapse:collapse;min-width:500px}
+th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}
+.scroll{overflow:auto}
+.small{color:#63758b;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+<h1>🏪 Mastan Shah Software</h1>
+<p>Retail & Wholesale | Afghanistan | USD + AFN</p>
+</header>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script>
+const pages=[
+"Dashboard","Customers","Suppliers","Both",
+"Sale Invoice","Purchase Invoice","Payments",
+"Stock Items","Godams","Stock Transfer",
+"Currency Exchange","Cash Ledger","Reports"
+];
+let data;
+try{data=JSON.parse(localStorage.getItem("mastanDemo"))||null}catch(e){}
+if(!data)data={
+customers:[],suppliers:[],items:[],
+godams:["Shop"],entries:[],usd:0,afn:0,rate:70
+};
+let current="Dashboard";
+const save=()=>localStorage.setItem("mastanDemo",JSON.stringify(data));
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const usd=n=>Number(n||0).toFixed(2)+" USD";
+const afn=n=>Number(n||0).toFixed(2)+" AFN";
+function nav(){
+document.getElementById("nav").innerHTML=pages.map(p=>
+`<button onclick="show('${p}')">${p}</button>`).join("");
+}
+function field(label,name,type="text",value=""){
+return `<label>${label}</label><input name="${name}" type="${type}" value="${esc(value)}">`;
+}
+function select(label,name,items){
+return `<label>${label}</label><select name="${name}"><option value="">Select</option>${items.map(x=>`<option>${esc(x)}</option>`).join("")}</select>`;
+}
+function table(heads,rows){
+return `<div class="scroll"><table><thead><tr>${heads.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.length?rows.join(""):`<tr><td colspan="${heads.length}">No records yet</td></tr>`}</tbody></table></div>`;
+}
+function row(cells){return `<tr>${cells.map(x=>`<td>${x}</td>`).join("")}</tr>`}
+function show(p){
+current=p;nav();let html="";
+if(p==="Dashboard"){
+html=`<div class="grid">
+<div class="card"><h3>Customers</h3><h2>${data.customers.length}</h2></div>
+<div class="card"><h3>Suppliers</h3><h2>${data.suppliers.length}</h2></div>
+<div class="card"><h3>USD Cash</h3><h2>${usd(data.usd)}</h2></div>
+<div class="card"><h3>AFN Cash</h3><h2>${afn(data.afn)}</h2></div></div>
+<div class="card"><h2>Welcome</h2>
+<p>Demo version. Add customers, suppliers, stock and godams before entering transactions.</p>
+<p class="small">Data is saved only in this browser on this device. Shared online database is not connected.</p></div>`;
+}else if(["Customers","Suppliers","Both"].includes(p)){
+html=`<div class="card"><h2>Add ${p}</h2><form id="f">
+${field("Name","name")}${field("Address","address")}
+${field("Phone / WhatsApp","phone","tel")}
+${field("Opening Balance","opening","number","0")}
+${select("Currency","currency",["USD","AFN"])}
+<button>Save</button></form></div>
+<div class="card"><h2>${p} List</h2>${table(["Name","Phone","Address","Opening Balance"],(p==="Suppliers"?data.suppliers:data.customers).map(x=>row([esc(x.name),esc(x.phone),esc(x.address),x.opening+" "+x.currency])))}</div>`;
+}else if(p==="Stock Items"){
+html=`<div class="card"><h2>Add Stock Item</h2><form id="f">
+${field("Item Name","name")}
+${select("Godam","godam",data.godams)}
+${field("Opening Quantity","qty","number","0")}
+${field("Cost per Item USD","cost","number","0")}
+<button>Save Item</button></form></div>
+<div class="card"><h2>Stock List</h2>${table(["Item","Godam","Opening Qty","Cost USD"],data.items.map(x=>row([esc(x.name),esc(x.godam),x.qty,usd(x.cost)])))}</div>`;
+}else if(p==="Godams"){
+html=`<div class="card"><h2>Add Godam</h2><form id="f">
+${field("Godam Name","name")}${field("Address","address")}
+<button>Add Godam</button></form></div>
+<div class="card"><h2>Godams</h2>${table(["Godam"],data.godams.map(x=>row([esc(x)])))}</div>`;
+}else if(p==="Payments"){
+html=`<div class="card"><h2>Record Payment</h2><form id="f">
+${select("Payment Type","type",["Receive from Customer","Give to Customer","Receive from Supplier","Pay Supplier"])}
+${field("Party Name","party")}${field("Amount","amount","number","0")}
+${select("Currency","currency",["USD","AFN"])}
+${field("Date","date","date",new Date().toISOString().slice(0,10))}
+<button>Save Payment</button></form></div>
+<div class="card"><h2>Payment History</h2>${table(["Date","Type","Party","Amount","Currency"],data.entries.filter(x=>x.kind==="Payment").map(x=>row([x.date,x.type,esc(x.party),x.amount,x.currency])))}</div>`;
+}else if(p==="Sale Invoice"||p==="Purchase Invoice"){
+let isSale=p==="Sale Invoice";
+html=`<div class="card"><h2>${p}</h2><form id="f">
+${select(isSale?"Customer":"Supplier","party",(isSale?data.customers:data.suppliers).map(x=>x.name))}
+${select("Item","item",data.items.map(x=>x.name))}
+${field("Quantity","qty","number","1")}
+${field("Rate USD","rate","number","0")}
+${field("Discount USD","discount","number","0")}
+${field("Date","date","date",new Date().toISOString().slice(0,10))}
+<button>Save Invoice</button></form>
+<p class="small">This starter demo does not yet automatically update every linked ledger or stock balance.</p></div>
+<div class="card"><h2>Invoice History</h2>${table(["Date","Type","Party","Item","Qty","Total USD"],data.entries.filter(x=>x.kind==="Sale"||x.kind==="Purchase").map(x=>row([x.date,x.kind,esc(x.party),esc(x.item),x.qty,usd(x.total)])))}</div>`;
+}else if(p==="Currency Exchange"){
+html=`<div class="card"><h2>Currency Exchange</h2><form id="f">
+${field("AFN for 1 USD","rate","number",data.rate)}
+${select("Direction","direction",["USD to AFN","AFN to USD"])}
+${field("Amount","amount","number","1")}
+<button>Exchange</button></form>
+<p>Current rate: 1 USD = ${data.rate} AFN</p>
+<p>USD Cash: ${usd(data.usd)} | AFN Cash: ${afn(data.afn)}</p></div>`;
+}else if(p==="Stock Transfer"){
+html=`<div class="card"><h2>Stock Transfer</h2><p>Select a source and destination godam to plan a transfer. Full automatic stock movement is not yet implemented in this starter demo.</p><form id="f">
+${select("Item","item",data.items.map(x=>x.name))}
+${select("From Godam","from",data.godams)}
+${select("To Godam","to",data.godams)}
+${field("Quantity","qty","number","1")}
+<button>Save Transfer Record</button></form></div>`;
+}else if(p==="Cash Ledger"){
+html=`<div class="card"><h2>Cash Balances</h2>
+<h3>USD: ${usd(data.usd)}</h3><h3>AFN: ${afn(data.afn)}</h3>
+${table(["Date","Type","Details","Amount","Currency"],data.entries.map(x=>row([x.date,x.kind,esc(x.party||x.item||x.type||""),x.total??x.amount,x.currency||"USD"])))}</div>`;
+}else if(p==="Reports"){
+html=`<div class="card"><h2>Reports</h2>
+<p>Print or save the current demo report as PDF using your browser.</p>
+<button onclick="window.print()">Print / Save PDF</button>
+<button onclick="share()">Share via WhatsApp</button>
+${table(["Date","Type","Details","Total"],data.entries.map(x=>row([x.date,x.kind,esc(x.party||x.item||x.type||""),x.total??x.amount])))}
+</div>`;
+}
+document.getElementById("app").innerHTML=html;
+const f=document.getElementById("f");
+if(f)f.onsubmit=e=>{
+e.preventDefault();const d=Object.fromEntries(new FormData(f).entries());
+if(p==="Customers"||p==="Suppliers"||p==="Both"){
+let x={...d,opening:Number(d.opening||0)};
+if(p==="Suppliers")data.suppliers.push(x);
+else if(p==="Both"){data.customers.push({...x});data.suppliers.push({...x})}
+else data.customers.push(x);
+}else if(p==="Stock Items"){
+data.items.push({...d,qty:Number(d.qty||0),cost:Number(d.cost||0)});
+}else if(p==="Godams"){
+if(d.name&&!data.godams.includes(d.name))data.godams.push(d.name);
+}else if(p==="Payments"){
+let amount=Number(d.amount||0),incoming=d.type.startsWith("Receive");
+if(d.currency==="USD")data.usd+=incoming?amount:-amount;
+else data.afn+=incoming?amount:-amount;
+data.entries.push({...d,amount,kind:"Payment"});
+}else if(p==="Sale Invoice"||p==="Purchase Invoice"){
+let qty=Number(d.qty||0),rate=Number(d.rate||0),discount=Number(d.discount||0);
+let total=Math.max(0,qty*rate-discount);
+data.entries.push({...d,qty,rate,discount,total,kind:p==="Sale Invoice"?"Sale":"Purchase"});
+}else if(p==="Currency Exchange"){
+data.rate=Number(d.rate||data.rate);
+let amount=Number(d.amount||0);
+if(d.direction==="USD to AFN"){data.usd-=amount;data.afn+=amount*data.rate}
+else{data.afn-=amount;data.usd+=amount/data.rate}
+}else if(p==="Stock Transfer"){
+data.entries.push({...d,kind:"Stock Transfer",date:new Date().toISOString().slice(0,10)});
+}
+save();show(p);alert("Saved in this browser demo");
+};
+}
+function share(){
+let text="Mastan Shah Software Demo Report\\n"+data.entries.map(x=>x.date+" | "+x.kind+" | "+(x.party||x.item||"")+" | "+(x.total??x.amount??"")).join("\\n");
+location.href="https://wa.me/?text="+encodeURIComponent(text);
+}
+show("Dashboard");
+</script>
+</body>
+</html>
