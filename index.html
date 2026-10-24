@@ -7,279 +7,384 @@
 <title>Mastan Shah Software</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{font-family:Arial,sans-serif;color:#172033;background:#f1f5f9}
-*{box-sizing:border-box}body{margin:0}header{background:#123b69;color:white;padding:18px}
-header h2{margin:0 0 6px}.wrap{max-width:1100px;margin:auto;padding:14px}
-.card{background:white;padding:16px;border-radius:12px;margin:12px 0;box-shadow:0 2px 8px #0001}
-input,select,button{font:inherit;padding:11px;margin:5px 0;border-radius:7px;border:1px solid #cbd5e1;width:100%}
-button{background:#1769aa;color:white;border:0;cursor:pointer;font-weight:bold}
-button.secondary{background:#475569}.tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
-.tabs button{font-size:14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
-.small{font-size:13px;color:#64748b}.item{border-bottom:1px solid #e2e8f0;padding:10px 0;overflow-wrap:anywhere}
-.hidden{display:none}.danger{background:#b91c1c}h3{margin-top:0}
-@media(min-width:700px){.tabs{grid-template-columns:repeat(4,minmax(0,1fr))}}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial;background:#eef2f7;color:#172033}
+header{background:#123b69;color:white;padding:16px}
+main{max-width:1100px;margin:auto;padding:12px}
+.card{background:white;padding:15px;margin:10px 0;border-radius:10px;box-shadow:0 2px 6px #0001}
+input,select,button,textarea{width:100%;padding:11px;margin:5px 0;border:1px solid #ccd5e0;border-radius:7px;font-size:15px}
+button{background:#1769aa;color:white;border:0;font-weight:bold}
+nav{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.hidden{display:none}
+.small{font-size:12px;color:#64748b}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:8px;border-bottom:1px solid #ddd;text-align:left}
+.tablebox{overflow:auto}
+@media(min-width:700px){nav{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
 <body>
 <header>
-  <h2>Mastan Shah Software</h2>
-  <div>Online Accounts • Stock • Godam • USD / AFN</div>
+<h2>Mastan Shah Software</h2>
+<div>Accounts • Stock • Godam • Payments • Reports</div>
 </header>
-<div class="wrap">
-  <section id="login" class="card">
-    <h3>Admin Login</h3>
-    <p class="small">Use the email and password created in Supabase Authentication.</p>
-    <input id="email" type="email" placeholder="Admin email">
-    <input id="password" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
-    <div id="loginMsg" class="small"></div>
-  </section>
+<main>
+<section id="login" class="card">
+<h3>Admin Login</h3>
+<input id="email" type="email" placeholder="Supabase Admin Email">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<p id="loginMessage" class="small"></p>
+</section>
 
-  <section id="app" class="hidden">
-    <div class="card">
-      <div id="who" class="small"></div>
-      <button class="secondary" onclick="logout()">Logout</button>
-    </div>
-    <div class="tabs">
-      <button onclick="page('dashboard')">Dashboard</button>
-      <button onclick="page('customers')">Customers</button>
-      <button onclick="page('suppliers')">Suppliers</button>
-      <button onclick="page('items')">Stock Items</button>
-      <button onclick="page('godowns')">Godams</button>
-      <button onclick="page('invoice')">Sale / Purchase</button>
-      <button onclick="page('payments')">Payments</button>
-      <button onclick="page('exchange')">USD / AFN Exchange</button>
-      <button onclick="page('ledger')">Cash Ledger</button>
-      <button onclick="page('reports')">Reports / Print</button>
-    </div>
-    <div id="content" class="card"></div>
-  </section>
+<section id="app" class="hidden">
+<div class="card">
+<span id="userInfo"></span>
+<button onclick="logout()">Logout</button>
 </div>
 
+<nav>
+<button onclick="showPage('dashboard')">Dashboard</button>
+<button onclick="showPage('customers')">Customers</button>
+<button onclick="showPage('suppliers')">Suppliers</button>
+<button onclick="showPage('items')">Stock Items</button>
+<button onclick="showPage('godams')">Godams</button>
+<button onclick="showPage('invoice')">Sale / Purchase</button>
+<button onclick="showPage('payments')">Payments</button>
+<button onclick="showPage('partyLedger')">Party Ledger</button>
+<button onclick="showPage('stockLedger')">Stock Ledger</button>
+<button onclick="showPage('cashLedger')">Cash Ledger</button>
+<button onclick="showPage('exchange')">USD / AFN</button>
+<button onclick="showPage('reports')">Reports / Print</button>
+</nav>
+
+<div id="content" class="card">Loading...</div>
+</section>
+</main>
+
 <script>
-const SUPABASE_URL = "https://mcvahsaxynfgmcjkhdku.supabase.co";
-const SUPABASE_KEY = "sb_publishable_pX8Jn58bNOn_Lpf2DOoBHA_78MuE6yB";
-const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentUser=null, currentPage="dashboard";
+const SUPABASE_URL="https://mcvahsaxynfgmcjkhdku.supabase.co";
+const SUPABASE_KEY="sb_publishable_pX8Jn58bNOn_Lpf2DOoBHA_78MuE6yB";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null,currentPage="dashboard";
 
-const $ = id => document.getElementById(id);
-const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const money = n => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:2});
-const msg = (s) => `<p class="small">${esc(s)}</p>`;
-const field = (id,label,type="text",placeholder="") =>
-  `<label>${label}<input id="${id}" type="${type}" placeholder="${placeholder}"></label>`;
-const select = (id,label,options) =>
-  `<label>${label}<select id="${id}">${options.map(o=>`<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("")}</select></label>`;
-const val = id => $(id).value.trim();
+const $=id=>document.getElementById(id);
+const v=id=>($(id)?.value||"").trim();
+const safe=x=>String(x??"").replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+const cash=n=>Number(n||0).toLocaleString();
 
+function errorMessage(e){alert(e.message||String(e))}
+function task(fn){fn().catch(errorMessage)}
+function currencySelect(id="currency"){
+return `<select id="${id}">
+<option>PKR</option><option>AFN</option><option>USD</option>
+</select>`;
+}
+function input(id,label,type="text"){
+return `<label>${label}<input id="${id}" type="${type}"></label>`;
+}
+function selectBox(id,label,items){
+return `<label>${label}<select id="${id}">${
+items.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join("")
+}</select></label>`;
+}
 async function login(){
-  $("loginMsg").textContent="Signing in...";
-  const {error}=await db.auth.signInWithPassword({
-    email:val("email"),password:val("password")
-  });
-  $("loginMsg").textContent=error?error.message:"";
-  await checkSession();
+$("loginMessage").textContent="Logging in...";
+const {error}=await db.auth.signInWithPassword({
+email:v("email"),password:v("password")
+});
+if(error){$("loginMessage").textContent=error.message;return}
+await checkSession();
 }
-async function logout(){await db.auth.signOut();await checkSession();}
+async function logout(){
+await db.auth.signOut();
+await checkSession();
+}
 async function checkSession(){
-  const {data}=await db.auth.getSession();
-  currentUser=data.session?.user||null;
-  $("login").classList.toggle("hidden",!!currentUser);
-  $("app").classList.toggle("hidden",!currentUser);
-  if(currentUser){$("who").textContent="Logged in: "+currentUser.email;await page(currentPage);}
+const {data,error}=await db.auth.getSession();
+if(error)throw error;
+currentUser=data.session?.user||null;
+$("login").classList.toggle("hidden",!!currentUser);
+$("app").classList.toggle("hidden",!currentUser);
+if(currentUser){
+$("userInfo").textContent="Logged in: "+currentUser.email;
+await showPage(currentPage);
 }
-db.auth.onAuthStateChange(()=>setTimeout(checkSession,0));
+}
+db.auth.onAuthStateChange(()=>setTimeout(()=>checkSession().catch(errorMessage),0));
 
-async function rows(table,order="created_at"){
-  let q=db.from(table).select("*");
-  if(order) q=q.order(order,{ascending:false});
-  const {data,error}=await q;
-  if(error) throw error;
-  return data||[];
+async function getRows(table,order="created_at"){
+let q=db.from(table).select("*");
+if(order)q=q.order(order,{ascending:false});
+const {data,error}=await q;
+if(error)throw error;
+return data||[];
 }
-async function insert(table,record){
-  const {error}=await db.from(table).insert(record);
-  if(error) throw error;
+async function addRecord(table,record){
+const {error}=await db.from(table).insert(record);
+if(error)throw error;
 }
-function run(fn){
-  Promise.resolve().then(fn).catch(e=>alert("Error: "+(e.message||e)));
+function renderList(items){
+if(!items.length)return "<p>No records found.</p>";
+return items.map(x=>`<div style="padding:10px;border-bottom:1px solid #ddd">
+<b>${safe(x.name||x.invoice_number||x.id)}</b>
+<div class="small">${safe(x.phone||x.address||"")}</div>
+</div>`).join("");
 }
-async function page(name){
-  currentPage=name;
-  if(!currentUser)return;
-  const c=$("content");
-  c.innerHTML="<h3>Loading...</h3>";
-  try{
-    if(name==="dashboard"){
-      const [cs,ss,its,gs,inv]=await Promise.all([
-        rows("customers"),rows("suppliers"),rows("stock_items"),rows("godowns"),rows("invoices")
-      ]);
-      c.innerHTML=`<h3>Dashboard</h3><div class="grid">
-      ${stat("Customers",cs.length)}${stat("Suppliers",ss.length)}
-      ${stat("Stock Items",its.length)}${stat("Godams",gs.length)}
-      ${stat("Invoices",inv.length)}</div>
-      ${msg("Online database connected. Use the menu to enter records.")}`;
-    }
-    if(name==="customers"||name==="suppliers"){
-      const isC=name==="customers",table=name,title=isC?"Customers":"Suppliers";
-      c.innerHTML=`<h3>${title}</h3><div class="grid">
-      ${field("pname","Name")}${field("phone","Phone")}
-      ${field("address","Address")}${field("opening","Opening balance","number","0")}
-      ${select("currency","Currency",currencies())}</div>
-      <button onclick="run(()=>addParty('${table}'))">Save ${isC?"Customer":"Supplier"}</button>
-      <div id="list"></div>`;
-      const data=await rows(table);
-      $("list").innerHTML=data.map(x=>`<div class="item"><b>${esc(x.name)}</b>
-      <br>${esc(x.phone||"")} · ${esc(x.currency)} · Opening: ${money(x.opening_balance)}
-      <br><span class="small">${esc(x.address||"")}</span></div>`).join("")||msg("No records yet.");
-    }
-    if(name==="items"){
-      c.innerHTML=`<h3>Stock Items</h3>${field("iname","Item name")}${field("unit","Unit (piece, box...)")}
-      <button onclick="run(addItem)">Save Item</button><div id="list"></div>`;
-      const data=await rows("stock_items");
-      $("list").innerHTML=data.map(x=>`<div class="item"><b>${esc(x.name)}</b> — ${esc(x.unit||"piece")}</div>`).join("")||msg("No items yet.");
-    }
-    if(name==="godowns"){
-      c.innerHTML=`<h3>Godams</h3>${field("gname","Godam name")}
-      <button onclick="run(addGodown)">Save Godam</button><div id="list"></div>`;
-      const data=await rows("godowns");
-      $("list").innerHTML=data.map(x=>`<div class="item">${esc(x.name)}</div>`).join("")||msg("No godams yet.");
-    }
-    if(name==="invoice"){
-      const [parties,items,gs]=await Promise.all([
-        rows("customers"),rows("stock_items"),rows("godowns")
-      ]);
-      c.innerHTML=`<h3>Sale / Purchase Invoice</h3>
-      ${select("itype","Invoice type",[{value:"sale",label:"Sale"},{value:"purchase",label:"Purchase"}])}
-      ${field("inum","Invoice number")}${select("iparty","Customer / Supplier",parties.map(p=>({value:p.id,label:p.name})))}
-      ${select("igodam","Godam",gs.map(g=>({value:g.id,label:g.name})))}
-      ${select("iitem","Item",items.map(i=>({value:i.id,label:i.name})))}
-      <div class="grid">${field("iqty","Quantity","number","1")}${field("iprice","Unit price","number","0")}</div>
-      ${select("icur","Currency",currencies())}${field("idate","Date","date",new Date().toISOString().slice(0,10))}
-      <button onclick="run(saveInvoice)">Save Invoice</button>
-      <p class="small">One item per invoice entry. Sale reduces stock; purchase increases stock.</p>`;
-    }
-    if(name==="payments"){
-      const [cs,ss]=await Promise.all([rows("customers"),rows("suppliers")]);
-      c.innerHTML=`<h3>Party Payment</h3>
-      ${select("ptype","Party type",[{value:"customer",label:"Customer"},{value:"supplier",label:"Supplier"}])}
-      ${select("pparty","Party",[...cs.map(p=>({value:p.id,label:"Customer: "+p.name})),...ss.map(p=>({value:p.id,label:"Supplier: "+p.name}))])}
-      ${select("paytype","Payment",[{value:"received",label:"Received from party"},{value:"paid",label:"Paid to party"}])}
-      <div class="grid">${field("pamount","Amount","number","0")}${select("pcurrency","Currency",currencies())}</div>
-      ${field("pdetails","Details / reference")}
-      <button onclick="run(savePayment)">Save Payment</button>`;
-    }
-    if(name==="exchange"){
-      c.innerHTML=`<h3>Currency Exchange</h3>
-      ${select("direction","Direction",[{value:"USD_AFN",label:"USD → AFN"},{value:"AFN_USD",label:"AFN → USD"}])}
-      ${field("examount","Amount to exchange","number","0")}
-      ${field("exrate","Rate (AFN per USD)","number","70")}
-      ${field("exref","Reference / details")}
-      <button onclick="run(saveExchange)">Save Exchange</button>
-      <p class="small">For USD → AFN, enter the USD amount. For AFN → USD, enter the AFN amount.</p>`;
-    }
-    if(name==="ledger"){
-      const data=await rows("cash_movements","movement_date");
-      c.innerHTML=`<h3>Cash Ledger</h3><div id="list"></div>`;
-      $("list").innerHTML=data.map(x=>`<div class="item"><b>${esc(x.currency)} ${money(x.amount)}</b>
-      — ${esc(x.movement_type)}<br>${esc(x.reference||"")}<br>
-      <span class="small">${esc(x.movement_date||"")}</span></div>`).join("")||msg("No cash entries yet.");
-    }
-    if(name==="reports"){
-      const [inv,stock,cs,ss,cash]=await Promise.all([
-        rows("invoices"),rows("stock_items"),rows("customers"),rows("suppliers"),rows("cash_movements","movement_date")
-      ]);
-      c.innerHTML=`<h3>Reports</h3><p>Invoices: ${inv.length}</p>
-      <p>Stock items: ${stock.length}</p><p>Customers: ${cs.length}</p>
-      <p>Suppliers: ${ss.length}</p><p>Cash entries: ${cash.length}</p>
-      <button onclick="window.print()">Print / Save PDF</button>`;
-    }
-  }catch(e){c.innerHTML=`<h3>Could not load data</h3>${msg(e.message)}${msg("Check that the Supabase SQL policies have been added.")}`;}
+async function showPage(page){
+currentPage=page;
+const c=$("content");
+c.innerHTML="Loading...";
+try{
+if(page==="dashboard"){
+const [a,b,d,g,i,m]=await Promise.all([
+getRows("customers"),getRows("suppliers"),getRows("stock_items"),
+getRows("godowns"),getRows("invoices"),getRows("stock_movements")
+]);
+c.innerHTML=`<h3>Dashboard</h3><div class="grid">
+${stat("Customers",a.length)}
+${stat("Suppliers",b.length)}
+${stat("Stock Items",d.length)}
+${stat("Godams",g.length)}
+${stat("Invoices",i.length)}
+${stat("Stock Movements",m.length)}
+</div><p class="small">Existing records are read from Supabase.</p>`;
 }
-function stat(label,n){return `<div class="card"><div class="small">${label}</div><h2>${n}</h2></div>`;}
-function currencies(){return [{value:"USD",label:"USD"},{value:"AFN",label:"AFN"}];}
-
-async function addParty(table){
-  if(!val("pname"))throw Error("Name is required.");
-  await insert(table,{name:val("pname"),phone:val("phone")||null,address:val("address")||null,
-    opening_balance:Number(val("opening")||0),currency:val("currency")});
-  alert("Saved");await page(currentPage);
+if(page==="customers"||page==="suppliers"){
+const table=page;
+c.innerHTML=`<h3>${page}</h3>
+${input("name","Name")}
+${input("phone","Phone")}
+${input("address","Address")}
+${input("opening","Opening Balance","number")}
+${currencySelect()}
+<button onclick="task(saveParty)">Save ${page==="customers"?"Customer":"Supplier"}</button>
+<input id="filter" placeholder="Search..." oninput="task(loadPartyList)">
+<div id="list"></div>`;
+window.partyTable=table;
+await loadPartyList();
 }
-async function addItem(){
-  if(!val("iname"))throw Error("Item name is required.");
-  await insert("stock_items",{name:val("iname"),unit:val("unit")||"piece"});
-  alert("Saved");await page("items");
+if(page==="items"){
+c.innerHTML=`<h3>Stock Items</h3>
+${input("itemName","Item Name")}
+${input("unit","Unit (piece / box)")}
+<button onclick="task(saveItem)">Save Item</button>
+<div id="list"></div>`;
+$("list").innerHTML=renderList(await getRows("stock_items"));
 }
-async function addGodown(){
-  if(!val("gname"))throw Error("Godam name is required.");
-  await insert("godowns",{name:val("gname")});
-  alert("Saved");await page("godowns");
+if(page==="godams"){
+c.innerHTML=`<h3>Godams</h3>
+${input("godamName","Godam Name")}
+<button onclick="task(saveGodam)">Save Godam</button>
+<div id="list"></div>`;
+$("list").innerHTML=renderList(await getRows("godowns"));
+}
+if(page==="invoice"){
+const [customers,suppliers,items,godams]=await Promise.all([
+getRows("customers"),getRows("suppliers"),
+getRows("stock_items"),getRows("godowns")
+]);
+c.innerHTML=`<h3>Sale / Purchase Invoice</h3>
+<label>Type<select id="type" onchange="changePartyOptions()">
+<option value="sale">Sale</option>
+<option value="purchase">Purchase</option></select></label>
+${input("invoiceNo","Invoice Number")}
+<div id="partyOptions"></div>
+${selectBox("itemId","Item",items)}
+${selectBox("godamId","Source / Destination Godam",godams)}
+${input("qty","Quantity","number")}
+${input("price","Unit Price","number")}
+${currencySelect("invCurrency")}
+${input("invoiceDate","Date","date")}
+<button onclick="task(saveInvoice)">Save Invoice</button>
+<p class="small">Invoice steps use separate database requests. A failure can leave a partial invoice. Test first.</p>`;
+window.invoiceCustomers=customers;
+window.invoiceSuppliers=suppliers;
+changePartyOptions();
+}
+if(page==="payments"){
+const [customers,suppliers]=await Promise.all([
+getRows("customers"),getRows("suppliers")
+]);
+window.paymentCustomers=customers;
+window.paymentSuppliers=suppliers;
+c.innerHTML=`<h3>Payments In / Out</h3>
+<label>Party Type<select id="partyType" onchange="changePaymentOptions()">
+<option value="customer">Customer</option>
+<option value="supplier">Supplier</option></select></label>
+<div id="paymentParty"></div>
+<label>Direction<select id="direction">
+<option value="received">Received</option><option value="paid">Paid</option>
+</select></label>
+${input("amount","Amount","number")}
+${currencySelect("payCurrency")}
+${input("payDetails","Reference / Details")}
+${input("payDate","Date","date")}
+<button onclick="task(savePayment)">Save Payment</button>`;
+changePaymentOptions();
+}
+if(page==="partyLedger"){
+const [entries,customers,suppliers]=await Promise.all([
+getRows("party_ledger_entries"),getRows("customers"),getRows("suppliers")
+]);
+const names={};
+customers.forEach(x=>names["customer:"+x.id]=x.name);
+suppliers.forEach(x=>names["supplier:"+x.id]=x.name);
+c.innerHTML=`<h3>Party Ledger</h3><input id="ledgerSearch" placeholder="Search party..." oninput="task(loadPartyLedger)"><div id="list"></div>`;
+window.ledgerEntries=entries.map(x=>({...x,partyName:names[x.party_type+":"+x.party_id]||x.party_id}));
+loadPartyLedger();
+}
+if(page==="stockLedger"){
+const [moves,items,godams]=await Promise.all([
+getRows("stock_movements"),getRows("stock_items"),getRows("godowns")
+]);
+const im=Object.fromEntries(items.map(x=>[x.id,x.name]));
+const gm=Object.fromEntries(godams.map(x=>[x.id,x.name]));
+c.innerHTML=`<h3>Stock Movement Ledger</h3><div class="tablebox"><table>
+<tr><th>Date</th><th>Godam</th><th>Item</th><th>Movement</th><th>Qty</th></tr>
+${moves.map(x=>`<tr><td>${safe(x.created_at||"")}</td>
+<td>${safe(gm[x.godown_id]||x.godown_id)}</td>
+<td>${safe(im[x.item_id]||x.item_id)}</td>
+<td>${safe(x.movement_type)}</td><td>${cash(x.quantity)}</td></tr>`).join("")}
+</table></div>`;
+}
+if(page==="cashLedger"){
+const d=await getRows("cash_movements","movement_date");
+c.innerHTML=`<h3>Cash Ledger</h3><div class="tablebox"><table>
+<tr><th>Date</th><th>Currency</th><th>Type</th><th>Amount</th><th>Reference</th></tr>
+${d.map(x=>`<tr><td>${safe(x.movement_date||"")}</td>
+<td>${safe(x.currency||"")}</td><td>${safe(x.movement_type||"")}</td>
+<td>${cash(x.amount)}</td><td>${safe(x.reference||"")}</td></tr>`).join("")}
+</table></div>`;
+}
+if(page==="exchange"){
+c.innerHTML=`<h3>USD / AFN Exchange</h3>
+<label>Direction<select id="exchangeDirection">
+<option value="USD_AFN">USD to AFN</option>
+<option value="AFN_USD">AFN to USD</option></select></label>
+${input("exchangeAmount","Amount","number")}
+${input("exchangeRate","Rate (AFN per USD)","number")}
+${input("exchangeRef","Details")}
+<button onclick="task(saveExchange)">Save Exchange</button>`;
+}
+if(page==="reports"){
+const [a,b,d,e,f,g]=await Promise.all([
+getRows("invoices"),getRows("customers"),getRows("suppliers"),
+getRows("stock_items"),getRows("cash_movements"),getRows("stock_movements")
+]);
+c.innerHTML=`<h3>Reports</h3><div class="grid">
+${stat("Invoices",a.length)}${stat("Customers",b.length)}
+${stat("Suppliers",d.length)}${stat("Stock Items",e.length)}
+${stat("Cash Movements",f.length)}${stat("Stock Movements",g.length)}
+</div><button onclick="window.print()">Print / Save PDF</button>
+<p class="small">Counts are not a verified profit-and-loss report.</p>`;
+}
+}catch(e){
+c.innerHTML=`<h3>Database Error</h3><p>${safe(e.message||e)}</p>
+<p class="small">Check the existing table/column names and Supabase access policies. No tables were reset.</p>`;
+}
+}
+function stat(label,n){return `<div class="card"><div>${safe(label)}</div><h2>${safe(n)}</h2></div>`}
+async function saveParty(){
+if(!v("name"))throw Error("Name is required");
+await addRecord(window.partyTable,{
+name:v("name"),phone:v("phone")||null,address:v("address")||null,
+opening_balance:Number(v("opening")||0),currency:v("currency")
+});
+alert("Saved");await showPage(currentPage);
+}
+async function loadPartyList(){
+const d=await getRows(window.partyTable);
+const term=(v("filter")||"").toLowerCase();
+$("list").innerHTML=renderList(d.filter(x=>JSON.stringify(x).toLowerCase().includes(term)));
+}
+async function saveItem(){
+if(!v("itemName"))throw Error("Item name is required");
+await addRecord("stock_items",{name:v("itemName"),unit:v("unit")||"piece"});
+alert("Saved");await showPage("items");
+}
+async function saveGodam(){
+if(!v("godamName"))throw Error("Godam name is required");
+await addRecord("godowns",{name:v("godamName")});
+alert("Saved");await showPage("godams");
+}
+function changePartyOptions(){
+const list=v("type")==="sale"?window.invoiceCustomers:window.invoiceSuppliers;
+$("partyOptions").innerHTML=selectBox("partyId","Party",list||[]);
+}
+function changePaymentOptions(){
+const list=v("partyType")==="customer"?window.paymentCustomers:window.paymentSuppliers;
+$("paymentParty").innerHTML=selectBox("paymentPartyId","Party",list||[]);
 }
 async function saveInvoice(){
-  const type=val("itype"),qty=Number(val("iqty")),price=Number(val("iprice"));
-  if(!val("igodam")||!val("iitem")||!val("iparty"))throw Error("Select party, item and godam.");
-  if(qty<=0||price<0)throw Error("Enter a valid quantity and price.");
-  const total=qty*price,partyTable=type==="sale"?"customers":"suppliers";
-  const {data:party,error:pe}=await db.from(partyTable).select("*").eq("id",val("iparty")).single();
-  if(pe)throw pe;
-  const {data:inv,error:ie}=await db.from("invoices").insert({
-    invoice_type:type,invoice_number:val("inum")||null,party_name:party.name,
-    godown_id:val("igodam"),invoice_date:val("idate")||new Date().toISOString().slice(0,10),
-    currency:val("icur"),total
-  }).select().single();
-  if(ie)throw ie;
-  const {error:le}=await db.from("invoice_lines").insert({
-    invoice_id:inv.id,item_id:val("iitem"),quantity:qty,unit_price:price
-  });
-  if(le)throw le;
-  const {error:se}=await db.from("stock_movements").insert({
-    item_id:val("iitem"),godown_id:val("igodam"),
-    movement_type:type==="sale"?"out":"in",quantity:qty,
-    reference:val("inum")||inv.id
-  });
-  if(se)throw se;
-  const {error:pe2}=await db.from("party_ledger_entries").insert({
-    party_type:type==="sale"?"customer":"supplier",party_id:party.id,
-    entry_type:type,amount:total,currency:val("icur"),
-    details:"Invoice "+(val("inum")||inv.id)
-  });
-  if(pe2)throw pe2;
-  alert("Invoice saved. Check stock and party ledger.");
-  await page("invoice");
+const type=v("type"),qty=Number(v("qty")),price=Number(v("price"));
+if(!v("partyId")||!v("itemId")||!v("godamId"))throw Error("Select party, item and godam.");
+if(qty<=0||price<0||!Number.isFinite(qty)||!Number.isFinite(price))throw Error("Invalid quantity or price.");
+const partyTable=type==="sale"?"customers":"suppliers";
+const {data:party,error:pe}=await db.from(partyTable).select("*").eq("id",v("partyId")).single();
+if(pe)throw pe;
+if(type==="sale"){
+const {data:moves,error:me}=await db.from("stock_movements").select("*").eq("item_id",v("itemId")).eq("godown_id",v("godamId"));
+if(me)throw me;
+const balance=(moves||[]).reduce((s,x)=>s+(x.movement_type==="in"?Number(x.quantity):x.movement_type==="out"?-Number(x.quantity):0),0);
+if(balance<qty)throw Error("Insufficient recorded stock. Available: "+balance);
+}
+const total=qty*price;
+const {data:inv,error:ie}=await db.from("invoices").insert({
+invoice_type:type,invoice_number:v("invoiceNo")||null,party_name:party.name,
+godown_id:v("godamId"),invoice_date:v("invoiceDate")||new Date().toISOString().slice(0,10),
+currency:v("invCurrency"),total
+}).select().single();
+if(ie)throw ie;
+await addRecord("invoice_lines",{invoice_id:inv.id,item_id:v("itemId"),quantity:qty,unit_price:price});
+await addRecord("stock_movements",{item_id:v("itemId"),godown_id:v("godamId"),movement_type:type==="sale"?"out":"in",quantity:qty,reference:v("invoiceNo")||inv.id});
+await addRecord("party_ledger_entries",{party_type:type==="sale"?"customer":"supplier",party_id:party.id,entry_type:type,amount:total,currency:v("invCurrency"),details:"Invoice "+(v("invoiceNo")||inv.id)});
+alert("Invoice saved. Verify all linked records.");await showPage("invoice");
 }
 async function savePayment(){
-  const amount=Number(val("pamount"));
-  if(amount<=0||!val("pparty"))throw Error("Select a party and enter a valid amount.");
-  const isReceived=val("paytype")==="received";
-  const ptype=val("ptype");
-  const {error}=await db.from("party_ledger_entries").insert({
-    party_type:ptype,party_id:val("pparty"),
-    entry_type:isReceived?"payment_received":"payment_paid",
-    amount,currency:val("pcurrency"),details:val("pdetails")||"Payment"
-  });
-  if(error)throw error;
-  const {error:ce}=await db.from("cash_movements").insert({
-    currency:val("pcurrency"),movement_type:isReceived?"in":"out",
-    amount,reference:val("pdetails")||"Party payment"
-  });
-  if(ce)throw ce;
-  alert("Payment saved");await page("payments");
+const amount=Number(v("amount"));
+if(amount<=0||!v("paymentPartyId"))throw Error("Enter amount and select party.");
+const received=v("direction")==="received";
+const pt=v("partyType");
+await addRecord("party_ledger_entries",{
+party_type:pt,party_id:v("paymentPartyId"),
+entry_type:received?"payment_received":"payment_paid",
+amount,currency:v("payCurrency"),details:v("payDetails")||"Payment"
+});
+await addRecord("cash_movements",{
+currency:v("payCurrency"),movement_type:received?"in":"out",
+amount,reference:v("payDetails")||"Party payment",
+movement_date:v("payDate")||new Date().toISOString().slice(0,10)
+});
+alert("Payment saved. Verify both ledgers.");await showPage("payments");
 }
 async function saveExchange(){
-  const amount=Number(val("examount")),rate=Number(val("exrate"));
-  if(amount<=0||rate<=0)throw Error("Amount and rate must be greater than zero.");
-  const dir=val("direction"),usd=dir==="USD_AFN"?amount:amount/rate;
-  const afn=dir==="USD_AFN"?amount*rate:amount;
-  const ref=val("exref")||"Currency exchange";
-  const records=[
-    {currency:"USD",movement_type:"out",amount:usd,reference:ref+" (USD exchanged)"},
-    {currency:"AFN",movement_type:"in",amount:afn,reference:ref+" (AFN received)"}
-  ];
-  const {error}=await db.from("cash_movements").insert(records);
-  if(error)throw error;
-  alert("Exchange saved");await page("exchange");
+const amount=Number(v("exchangeAmount")),rate=Number(v("exchangeRate"));
+if(amount<=0||rate<=0)throw Error("Enter valid amount and rate.");
+const dir=v("exchangeDirection");
+const usd=dir==="USD_AFN"?amount:amount/rate;
+const afn=dir==="USD_AFN"?amount*rate:amount;
+const ref=v("exchangeRef")||"Currency exchange";
+await addRecord("cash_movements",[
+{currency:"USD",movement_type:"out",amount:usd,reference:ref+" USD"},
+{currency:"AFN",movement_type:"in",amount:afn,reference:ref+" AFN"}
+]);
+alert("Exchange saved");await showPage("exchange");
 }
-checkSession();
+async function loadPartyLedger(){
+const term=(v("ledgerSearch")||"").toLowerCase();
+const data=(window.ledgerEntries||[]).filter(x=>String(x.partyName).toLowerCase().includes(term));
+$("list").innerHTML=`<div class="tablebox"><table>
+<tr><th>Date</th><th>Party</th><th>Entry</th><th>Amount</th><th>Currency</th><th>Details</th></tr>
+${data.map(x=>`<tr><td>${safe(x.created_at||"")}</td><td>${safe(x.partyName)}</td>
+<td>${safe(x.entry_type)}</td><td>${cash(x.amount)}</td>
+<td>${safe(x.currency||"")}</td><td>${safe(x.details||"")}</td></tr>`).join("")}
+</table></div>`;
+}
+checkSession().catch(errorMessage);
 </script>
 </body>
 </html>
