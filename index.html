@@ -3,388 +3,181 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Mastan Shah Software</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial;background:#eef2f7;color:#172033}
-header{background:#123b69;color:white;padding:16px}
-main{max-width:1100px;margin:auto;padding:12px}
-.card{background:white;padding:15px;margin:10px 0;border-radius:10px;box-shadow:0 2px 6px #0001}
-input,select,button,textarea{width:100%;padding:11px;margin:5px 0;border:1px solid #ccd5e0;border-radius:7px;font-size:15px}
-button{background:#1769aa;color:white;border:0;font-weight:bold}
-nav{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
-.hidden{display:none}
-.small{font-size:12px;color:#64748b}
-table{width:100%;border-collapse:collapse;font-size:13px}
-td,th{padding:8px;border-bottom:1px solid #ddd;text-align:left}
-.tablebox{overflow:auto}
-@media(min-width:700px){nav{grid-template-columns:repeat(4,1fr)}}
+*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#182230;font:14px Arial,sans-serif}header{background:#102a43;color:white;padding:16px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}h1{font-size:22px;margin:0 0 6px}nav{display:flex;gap:6px;flex-wrap:wrap;background:#dce7f5;padding:10px;position:sticky;top:0;z-index:2}button{background:#155eef;color:white;border:0;border-radius:6px;padding:9px 12px;cursor:pointer}nav button{background:white;color:#182230;border:1px solid #ccd5e1}nav button.active{background:#155eef;color:white}input,select,textarea{font:inherit;width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:6px;background:white}main{padding:12px;max-width:1400px;margin:auto}.page{display:none}.page.active{display:block}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.card{background:white;border:1px solid #d7e0eb;border-radius:10px;padding:14px;margin-bottom:12px;min-width:0}.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px}.field{display:flex;flex-direction:column;gap:5px}.field label{font-weight:bold;font-size:12px;color:#475467}.big{font-size:22px;font-weight:bold;margin-top:10px;overflow-wrap:anywhere}.muted{font-size:12px;color:#667085}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:650px}th,td{text-align:left;padding:9px;border-bottom:1px solid #dce3ec;vertical-align:top}th{background:#edf3fa}.actions{display:flex;gap:4px;flex-wrap:wrap}.actions button{font-size:11px;padding:6px}.red{background:#b42318}.gray{background:#475467}.green{background:#087443}.notice{background:#fff3cd;padding:10px;border-radius:7px;line-height:1.5}hr{border:0;border-top:1px solid #ddd;margin:15px 0}@media(max-width:600px){main{padding:7px}.card{padding:10px}h1{font-size:19px}}
 </style>
 </head>
 <body>
 <header>
-<h2>Mastan Shah Software</h2>
-<div>Accounts • Stock • Godam • Payments • Reports</div>
+ <div><h1>Mastan Shah Software</h1>Accounting · Inventory · Multi-Currency</div>
+ <div><label>Demo role</label><select id="role" onchange="roleChange()"><option>Admin 1</option><option>Admin 2</option></select></div>
 </header>
+<nav id="nav"></nav>
 <main>
-<section id="login" class="card">
-<h3>Admin Login</h3>
-<input id="email" type="email" placeholder="Supabase Admin Email">
-<input id="password" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
-<p id="loginMessage" class="small"></p>
+<section id="dashboard" class="page active">
+<h2>Dashboard</h2><div class="grid" id="summary"></div>
+<div class="card"><h3>Search</h3><input id="globalSearch" placeholder="Search party, item, godown, account..." oninput="globalSearch()"><div id="searchResult"></div></div>
+<div class="grid"><div class="card"><h3>Stock by Godown</h3><div id="godownSummary"></div></div><div class="card"><h3>Recent Entries</h3><div id="recent"></div></div></div>
 </section>
 
-<section id="app" class="hidden">
-<div class="card">
-<span id="userInfo"></span>
-<button onclick="logout()">Logout</button>
-</div>
+<section id="setup" class="page">
+<h2>Setup</h2>
+<div class="card"><h3>Add Customer / Supplier</h3><form id="partyForm"><div class="formgrid">
+<div class="field"><label>Name</label><input name="name" required></div>
+<div class="field"><label>Type</label><select name="type"><option>Customer</option><option>Supplier</option><option>Both</option></select></div>
+<div class="field"><label>Phone for WhatsApp</label><input name="phone" placeholder="923001234567"></div>
+<div class="field"><label>Address</label><input name="address"></div>
+<div class="field"><label>Opening balance</label><input name="opening" type="number" step="any" value="0"></div>
+<div class="field"><label>Currency</label><select name="currency"><option>USD</option><option>AFN</option><option>PKR</option></select></div>
+</div><p><button>Add Party</button></p></form></div>
+<div class="card"><h3>Add Item</h3><form id="itemForm"><div class="formgrid">
+<div class="field"><label>Item name</label><input name="name" required></div><div class="field"><label>Code</label><input name="sku"></div>
+<div class="field"><label>Unit</label><input name="unit" value="pcs"></div><div class="field"><label>Opening stock</label><input name="qty" type="number" min="0" step="any" value="0"></div>
+<div class="field"><label>Godown</label><select name="godown" id="openingGodown"></select></div><div class="field"><label>Unit cost USD</label><input name="cost" type="number" min="0" step="any" value="0"></div>
+</div><p><button>Add Item</button></p></form></div>
+<div class="card"><h3>Add Godown</h3><form id="godownForm" class="formgrid"><div class="field"><label>Name</label><input name="name" required></div><div class="field"><label>Address / note</label><input name="note"></div><div class="field"><label>&nbsp;</label><button>Add Godown</button></div></form></div>
+<div class="card"><h3>Add Cash / Bank Account</h3><form id="accountForm" class="formgrid">
+<div class="field"><label>Name</label><input name="name" required></div><div class="field"><label>Type</label><select name="type"><option>Cash</option><option>Bank</option></select></div>
+<div class="field"><label>Currency</label><select name="currency"><option>USD</option><option>AFN</option><option>PKR</option></select></div><div class="field"><label>Opening balance</label><input name="opening" type="number" step="any" value="0"></div><div class="field"><label>&nbsp;</label><button>Add Account</button></div>
+</form></div>
+<div class="grid"><div class="card"><h3>Parties</h3><div id="partyList"></div></div><div class="card"><h3>Items</h3><div id="itemList"></div></div><div class="card"><h3>Godowns</h3><div id="godownList"></div></div><div class="card"><h3>Cash / Bank</h3><div id="accountList"></div></div></div>
+</section>
 
-<nav>
-<button onclick="showPage('dashboard')">Dashboard</button>
-<button onclick="showPage('customers')">Customers</button>
-<button onclick="showPage('suppliers')">Suppliers</button>
-<button onclick="showPage('items')">Stock Items</button>
-<button onclick="showPage('godams')">Godams</button>
-<button onclick="showPage('invoice')">Sale / Purchase</button>
-<button onclick="showPage('payments')">Payments</button>
-<button onclick="showPage('partyLedger')">Party Ledger</button>
-<button onclick="showPage('stockLedger')">Stock Ledger</button>
-<button onclick="showPage('cashLedger')">Cash Ledger</button>
-<button onclick="showPage('exchange')">USD / AFN</button>
-<button onclick="showPage('reports')">Reports / Print</button>
-</nav>
+<section id="invoice" class="page">
+<h2>Sales / Purchase Invoice</h2><div class="card"><form id="invoiceForm"><div class="formgrid">
+<div class="field"><label>Type</label><select name="kind"><option>Sale</option><option>Purchase</option></select></div>
+<div class="field"><label>Date</label><input name="date" type="date" required></div><div class="field"><label>Party</label><select name="party" id="invParty" required></select></div>
+<div class="field"><label>Item</label><select name="item" id="invItem" required></select></div><div class="field"><label>Godown</label><select name="godown" id="invGodown" required></select></div>
+<div class="field"><label>Quantity</label><input name="qty" type="number" min="0.000001" step="any" required></div><div class="field"><label>Unit price</label><input name="rate" type="number" min="0" step="any" required></div>
+<div class="field"><label>Invoice currency</label><select name="currency"><option>USD</option><option>AFN</option><option>PKR</option></select></div>
+<div class="field"><label>Discount</label><input name="discount" type="number" min="0" step="any" value="0"></div>
+<div class="field"><label>Paid now</label><input name="paid" type="number" min="0" step="any" value="0"></div><div class="field"><label>Payment currency</label><select name="payCurrency"><option>USD</option><option>AFN</option><option>PKR</option></select></div>
+<div class="field"><label>Payment conversion rate to invoice currency</label><input name="payRate" type="number" min="0.000001" step="any" value="1"></div>
+<div class="field"><label>Cash / Bank account</label><select name="account" id="invAccount"></select></div><div class="field"><label>Invoice reference</label><input name="ref"></div><div class="field"><label>Description</label><input name="note"></div>
+</div><p><button>Save Invoice</button> <button type="button" class="gray" onclick="resetForm('invoiceForm')">Clear</button></p></form></div>
+<div class="card"><h3>Invoices</h3><div id="invoiceList"></div></div>
+</section>
 
-<div id="content" class="card">Loading...</div>
+<section id="payments" class="page">
+<h2>Payments / Receipts</h2><div class="card"><form id="paymentForm"><div class="formgrid">
+<div class="field"><label>Date</label><input name="date" type="date" required></div>
+<div class="field"><label>Direction</label><select name="direction"><option>Receive from Customer</option><option>Pay Customer</option><option>Pay Supplier</option><option>Receive from Supplier</option></select></div>
+<div class="field"><label>Party</label><select name="party" id="payParty" required></select></div>
+<div class="field"><label>Amount</label><input name="amount" type="number" min="0.000001" step="any" required></div>
+<div class="field"><label>Currency</label><select name="currency"><option>USD</option><option>AFN</option><option>PKR</option></select></div>
+<div class="field"><label>Cash / Bank account</label><select name="account" id="payAccount" required></select></div>
+<div class="field"><label>Reference</label><input name="ref"></div><div class="field"><label>Description</label><input name="note"></div>
+</div><p><button>Save Payment</button></p></form></div><div class="card"><h3>Payment History</h3><div id="paymentList"></div></div>
+</section>
+
+<section id="stock" class="page">
+<h2>Stock Movements</h2><div class="card"><form id="stockForm"><div class="formgrid">
+<div class="field"><label>Movement</label><select name="type"><option>Stock In</option><option>Stock Out</option><option>Transfer</option><option>Manufacturing Use</option><option>Return In</option></select></div>
+<div class="field"><label>Date</label><input name="date" type="date" required></div><div class="field"><label>Item</label><select name="item" id="stkItem" required></select></div>
+<div class="field"><label>Quantity</label><input name="qty" type="number" min="0.000001" step="any" required></div>
+<div class="field"><label>From Godown</label><select name="from" id="stkFrom"></select></div><div class="field"><label>To Godown</label><select name="to" id="stkTo"></select></div>
+<div class="field"><label>Unit cost USD</label><input name="cost" type="number" min="0" step="any" value="0"></div><div class="field"><label>Description</label><input name="note"></div>
+</div><p><button>Save Movement</button></p></form></div><div class="card"><h3>Stock History</h3><div id="stockList"></div></div>
+<div class="card"><h3>Item / Godown Ledger</h3><div class="formgrid"><div class="field"><label>Item</label><select id="ledgerItem"></select></div><div class="field"><label>Godown</label><select id="ledgerGodown"></select></div><div class="field"><label>&nbsp;</label><button type="button" onclick="stockLedger()">Show Ledger</button></div></div><div id="stockLedgerResult"></div></div>
+</section>
+
+<section id="transfer" class="page">
+<h2>Currency Transfer</h2><div class="card"><form id="transferForm"><div class="formgrid">
+<div class="field"><label>Date</label><input name="date" type="date" required></div><div class="field"><label>From currency</label><select name="fromCurrency"><option>USD</option><option>AFN</option><option>PKR</option></select></div>
+<div class="field"><label>Source account</label><select name="fromAccount" id="trFrom" required></select></div><div class="field"><label>Source amount</label><input name="amount" type="number" min="0.000001" step="any" required></div>
+<div class="field"><label>To currency</label><select name="toCurrency"><option>AFN</option><option>USD</option><option>PKR</option></select></div><div class="field"><label>Destination account</label><select name="toAccount" id="trTo" required></select></div>
+<div class="field"><label>Destination per source rate</label><input name="rate" type="number" min="0.000001" step="any" required></div><div class="field"><label>Description</label><input name="note"></div>
+</div><p><button>Save Transfer</button></p></form></div><div class="card"><div id="transferList"></div></div>
+</section>
+
+<section id="expenses" class="page">
+<h2>Expenses</h2><div class="card"><form id="expenseForm"><div class="formgrid">
+<div class="field"><label>Date</label><input name="date" type="date" required></div><div class="field"><label>Description</label><input name="note" required></div>
+<div class="field"><label>Amount</label><input name="amount" type="number" min="0.000001" step="any" required></div><div class="field"><label>Currency</label><select name="currency"><option>USD</option><option>AFN</option><option>PKR</option></select></div>
+<div class="field"><label>Cash / Bank</label><select name="account" id="expAccount" required></select></div>
+</div><p><button>Save Expense</button></p></form></div><div class="card"><div id="expenseList"></div></div>
+</section>
+
+<section id="ledgers" class="page">
+<h2>Ledgers & Reports</h2><div class="card"><div class="formgrid">
+<div class="field"><label>Report type</label><select id="reportType"><option value="all">All transactions</option><option value="invoice">Sales / Purchases</option><option value="payment">Payments</option><option value="stock">Stock movements</option><option value="expense">Expenses</option><option value="transfer">Currency transfers</option></select></div>
+<div class="field"><label>Search</label><input id="reportSearch" placeholder="Party, item, account, details"></div><div class="field"><label>From date</label><input type="date" id="fromDate"></div><div class="field"><label>To date</label><input type="date" id="toDate"></div>
+</div><p><button onclick="runReport()">Run Report</button> <button class="gray" onclick="window.print()">Print / Save PDF</button> <button class="green" onclick="downloadCSV()">Download CSV</button></p><div id="reportResult"></div></div>
+<div class="card"><h3>Party Ledger & WhatsApp</h3><div class="formgrid"><div class="field"><label>Party</label><select id="partyLedgerSelect"></select></div><div class="field"><label>&nbsp;</label><button onclick="showPartyLedger()">View Ledger</button></div><div class="field"><label>&nbsp;</label><button class="green" onclick="whatsappLedger()">WhatsApp</button></div></div><div id="partyLedgerResult"></div></div>
+<div class="card"><h3>Daily Roznamcha</h3><div class="formgrid"><div class="field"><label>Date</label><input type="date" id="rozDate"></div><div class="field"><label>&nbsp;</label><button onclick="roznamcha()">View Day</button></div></div><div id="rozResult"></div></div>
+</section>
+
+<section id="backup" class="page">
+<h2>Backup / Admin</h2><div class="notice">Admin 2 is a demo view only, not secure authentication. This app stores data in this browser. Do not publish confidential financial information on a public demo.</div>
+<div class="card"><button onclick="backup()">Download JSON Backup</button> <button class="gray" onclick="document.getElementById('restore').click()">Restore Backup</button><input id="restore" type="file" accept=".json" hidden onchange="restore(event)"></div>
+<div class="card"><h3>Entry history</h3><div id="historyList"></div></div>
+<div class="card"><button class="red" onclick="clearAll()">Clear all demo data</button></div>
 </section>
 </main>
-
 <script>
-const SUPABASE_URL="https://mcvahsaxynfgmcjkhdku.supabase.co";
-const SUPABASE_KEY="sb_publishable_pX8Jn58bNOn_Lpf2DOoBHA_78MuE6yB";
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentUser=null,currentPage="dashboard";
-
-const $=id=>document.getElementById(id);
-const v=id=>($(id)?.value||"").trim();
-const safe=x=>String(x??"").replace(/[&<>"']/g,c=>({
-"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-}[c]));
-const cash=n=>Number(n||0).toLocaleString();
-
-function errorMessage(e){alert(e.message||String(e))}
-function task(fn){fn().catch(errorMessage)}
-function currencySelect(id="currency"){
-return `<select id="${id}">
-<option>PKR</option><option>AFN</option><option>USD</option>
-</select>`;
+"use strict";
+const CUR=["USD","AFN","PKR"],$=id=>document.getElementById(id),today=()=>new Date().toISOString().slice(0,10),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8),n=x=>Number(x)||0;
+const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=(v,c="USD")=>n(v).toLocaleString(undefined,{maximumFractionDigits:4})+" "+c;
+const fresh=()=>({parties:[],items:[],godowns:[],accounts:[],tx:[],history:[]});
+let db;try{db=JSON.parse(localStorage.getItem("mss_v2"))||fresh()}catch(e){db=fresh()}
+const active=()=>db.tx.filter(t=>!t.void),party=id=>db.parties.find(x=>x.id===id),item=id=>db.items.find(x=>x.id===id),godown=id=>db.godowns.find(x=>x.id===id),account=id=>db.accounts.find(x=>x.id===id);
+function save(){localStorage.setItem("mss_v2",JSON.stringify(db));render()}
+function hist(action,t){db.history.unshift({date:today(),action,kind:t.kind||"",ref:t.ref||t.id||""});db.history=db.history.slice(0,500)}
+function add(t){t.id=uid();t.date=t.date||today();t.created=Date.now();t.void=false;db.tx.push(t);hist("Added",t);save()}
+function getForm(f){return Object.fromEntries(new FormData($(f)).entries())}
+function resetForm(id){$(id).reset();let d=$(id).querySelector('[type=date]');if(d)d.value=today()}
+function table(h,rows){return '<div class="tablewrap"><table><thead><tr>'+h.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr></thead><tbody>'+(rows.length?rows.map(r=>'<tr>'+r.map(x=>'<td>'+x+'</td>').join('')+'</tr>').join(''):`<tr><td colspan="${h.length}">No records</td></tr>` )+'</tbody></table></div>'}
+function opts(arr,label){return `<option value="">Select ${label}</option>`+arr.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}
+const pages=[["dashboard","Dashboard"],["setup","Setup"],["invoice","Sale / Purchase"],["payments","Payments"],["stock","Stock"],["transfer","Currency Transfer"],["expenses","Expenses"],["ledgers","Ledgers / Reports"],["backup","Backup / Admin"]];
+$("nav").innerHTML=pages.map(([id,name])=>`<button data-page="${id}" onclick="showPage('${id}')">${name}</button>`).join('');
+function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===id))}
+function roleChange(){let r=$("role").value;document.querySelectorAll("nav button").forEach(b=>b.style.display=r==="Admin 2"&& !["dashboard","ledgers","backup"].includes(b.dataset.page)?"none":"");showPage(r==="Admin 2"?"dashboard":"dashboard")}
+function stockQty(i,g){let q=0;active().filter(t=>t.kind==="stock"&&t.item===i).forEach(t=>{if(["Stock In","Return In"].includes(t.type)&&t.to===g)q+=n(t.qty);if(["Stock Out","Manufacturing Use"].includes(t.type)&&t.from===g)q-=n(t.qty);if(t.type==="Transfer"){if(t.from===g)q-=n(t.qty);if(t.to===g)q+=n(t.qty)}});active().filter(t=>t.kind==="invoice"&&t.item===i).forEach(t=>{if(t.invoiceKind==="Sale"&&t.from===g)q-=n(t.qty);if(t.invoiceKind==="Purchase"&&t.to===g)q+=n(t.qty)});return q}
+function acctBal(id){let a=account(id);if(!a)return 0;let b=n(a.opening);active().forEach(t=>{if(t.kind==="invoice"&&t.account===id)b+=(t.invoiceKind==="Sale"?1:-1)*n(t.paid)*n(t.payRate);if(t.kind==="payment"&&t.account===id)b+=(["Receive from Customer","Receive from Supplier"].includes(t.direction)?1:-1)*n(t.amount);if(t.kind==="expense"&&t.account===id)b-=n(t.amount);if(t.kind==="transfer"){if(t.fromAccount===id)b-=n(t.amount);if(t.toAccount===id)b+=n(t.received)}});return b}
+function partyBal(id,c){let p=party(id),b=p&&p.openingCurrency===c?n(p.opening):0;active().forEach(t=>{if(t.party!==id)return;if(t.kind==="invoice"&&t.currency===c)b+=(t.invoiceKind==="Sale"?1:-1)*(n(t.qty)*n(t.rate)-n(t.discount));if(t.kind==="payment"&&t.currency===c)b+=(["Receive from Customer","Pay Supplier"].includes(t.direction)?-1:1)*n(t.amount)});return b}
+function desc(t){if(t.kind==="invoice")return `${t.invoiceKind}: ${party(t.party)?.name||""} / ${item(t.item)?.name||""} × ${t.qty} @ ${t.rate}; discount ${t.discount}; paid ${t.paid} ${t.payCurrency}`;if(t.kind==="payment")return `${t.direction}: ${party(t.party)?.name||""} ${t.amount} ${t.currency}`;if(t.kind==="stock")return `${t.type}: ${item(t.item)?.name||""} ${t.qty}; ${godown(t.from)?.name||""} → ${godown(t.to)?.name||""}`;if(t.kind==="transfer")return `${t.amount} ${t.fromCurrency} → ${t.received} ${t.toCurrency}`;return t.note||""}
+function rowActions(t){return `<div class="actions"><button class="gray" onclick="editEntry('${t.id}')">Edit</button><button class="red" onclick="delEntry('${t.id}')">Delete</button><button class="green" onclick="reverseEntry('${t.id}')">Return / Reverse</button></div>`}
+function txRows(kind){return active().filter(t=>!kind||t.kind===kind).sort((a,b)=>b.date.localeCompare(a.date)).map(t=>[esc(t.date),esc(t.kind),esc(t.ref||""),esc(desc(t)),esc(t.currency||t.fromCurrency||""),esc(t.qty??t.amount??(t.qty*n(t.rate)-n(t.discount))),rowActions(t)])}
+function fill(id,arr,label){$(id).innerHTML=opts(arr,label)}
+function render(){
+ [["openingGodown",db.godowns,"godown"],["invGodown",db.godowns,"godown"],["stkFrom",db.godowns,"source godown"],["stkTo",db.godowns,"destination godown"],["ledgerGodown",db.godowns,"godown"],["invItem",db.items,"item"],["stkItem",db.items,"item"],["ledgerItem",db.items,"item"],["invParty",db.parties,"party"],["payParty",db.parties,"party"],["partyLedgerSelect",db.parties,"party"],["invAccount",db.accounts,"account"],["payAccount",db.accounts,"account"],["expAccount",db.accounts,"account"],["trFrom",db.accounts,"account"],["trTo",db.accounts,"account"]].forEach(a=>fill(...a));
+ $("partyList").innerHTML=table(["Name","Type","Phone","Address","Opening"],db.parties.map(p=>[esc(p.name),esc(p.type),esc(p.phone),esc(p.address),fmt(p.opening,p.openingCurrency)]));
+ $("itemList").innerHTML=table(["Item","Code","Unit","Stock"],db.items.map(i=>[esc(i.name),esc(i.sku),esc(i.unit),db.godowns.map(g=>`${esc(g.name)}: ${stockQty(i.id,g.id)}`).join("<br>")]));
+ $("godownList").innerHTML=table(["Godown","Note"],db.godowns.map(g=>[esc(g.name),esc(g.note)]));
+ $("accountList").innerHTML=table(["Account","Type","Currency","Balance"],db.accounts.map(a=>[esc(a.name),esc(a.type),esc(a.currency),fmt(acctBal(a.id),a.currency)]));
+ [["invoiceList","invoice"],["paymentList","payment"],["stockList","stock"],["transferList","transfer"],["expenseList","expense"]].forEach(([id,k])=>$(id).innerHTML=table(["Date","Type","Ref","Details","Currency","Amount / Qty","Actions"],txRows(k)));
+ $("historyList").innerHTML=table(["Date","Action","Type","Reference"],db.history.map(h=>[esc(h.date),esc(h.action),esc(h.kind),esc(h.ref)]));
+ $("summary").innerHTML=CUR.map(c=>`<div class="card">Cash / Bank ${c}<div class="big">${fmt(db.accounts.filter(a=>a.currency===c).reduce((s,a)=>s+acctBal(a.id),0),c)}</div></div>`).join('')+`<div class="card">Customer USD balances<div class="big">${fmt(db.parties.filter(p=>p.type!=="Supplier").reduce((s,p)=>s+Math.max(0,partyBal(p.id,"USD")),0))}</div></div><div class="card">Supplier USD balances<div class="big">${fmt(db.parties.filter(p=>p.type!=="Customer").reduce((s,p)=>s+Math.max(0,-partyBal(p.id,"USD")),0))}</div></div>`;
+ $("godownSummary").innerHTML=db.godowns.map(g=>`<p><b>${esc(g.name)}</b><br>${db.items.map(i=>`${esc(i.name)}: ${stockQty(i.id,g.id)}`).join(" · ")}</p>`).join("")||"Add godowns in Setup.";
+ $("recent").innerHTML=active().slice().sort((a,b)=>b.created-a.created).slice(0,8).map(t=>`<p>${esc(t.date)} — ${esc(desc(t))}</p>`).join("")||"No entries";
 }
-function input(id,label,type="text"){
-return `<label>${label}<input id="${id}" type="${type}"></label>`;
-}
-function selectBox(id,label,items){
-return `<label>${label}<select id="${id}">${
-items.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join("")
-}</select></label>`;
-}
-async function login(){
-$("loginMessage").textContent="Logging in...";
-const {error}=await db.auth.signInWithPassword({
-email:v("email"),password:v("password")
-});
-if(error){$("loginMessage").textContent=error.message;return}
-await checkSession();
-}
-async function logout(){
-await db.auth.signOut();
-await checkSession();
-}
-async function checkSession(){
-const {data,error}=await db.auth.getSession();
-if(error)throw error;
-currentUser=data.session?.user||null;
-$("login").classList.toggle("hidden",!!currentUser);
-$("app").classList.toggle("hidden",!currentUser);
-if(currentUser){
-$("userInfo").textContent="Logged in: "+currentUser.email;
-await showPage(currentPage);
-}
-}
-db.auth.onAuthStateChange(()=>setTimeout(()=>checkSession().catch(errorMessage),0));
-
-async function getRows(table,order="created_at"){
-let q=db.from(table).select("*");
-if(order)q=q.order(order,{ascending:false});
-const {data,error}=await q;
-if(error)throw error;
-return data||[];
-}
-async function addRecord(table,record){
-const {error}=await db.from(table).insert(record);
-if(error)throw error;
-}
-function renderList(items){
-if(!items.length)return "<p>No records found.</p>";
-return items.map(x=>`<div style="padding:10px;border-bottom:1px solid #ddd">
-<b>${safe(x.name||x.invoice_number||x.id)}</b>
-<div class="small">${safe(x.phone||x.address||"")}</div>
-</div>`).join("");
-}
-async function showPage(page){
-currentPage=page;
-const c=$("content");
-c.innerHTML="Loading...";
-try{
-if(page==="dashboard"){
-const [a,b,d,g,i,m]=await Promise.all([
-getRows("customers"),getRows("suppliers"),getRows("stock_items"),
-getRows("godowns"),getRows("invoices"),getRows("stock_movements")
-]);
-c.innerHTML=`<h3>Dashboard</h3><div class="grid">
-${stat("Customers",a.length)}
-${stat("Suppliers",b.length)}
-${stat("Stock Items",d.length)}
-${stat("Godams",g.length)}
-${stat("Invoices",i.length)}
-${stat("Stock Movements",m.length)}
-</div><p class="small">Existing records are read from Supabase.</p>`;
-}
-if(page==="customers"||page==="suppliers"){
-const table=page;
-c.innerHTML=`<h3>${page}</h3>
-${input("name","Name")}
-${input("phone","Phone")}
-${input("address","Address")}
-${input("opening","Opening Balance","number")}
-${currencySelect()}
-<button onclick="task(saveParty)">Save ${page==="customers"?"Customer":"Supplier"}</button>
-<input id="filter" placeholder="Search..." oninput="task(loadPartyList)">
-<div id="list"></div>`;
-window.partyTable=table;
-await loadPartyList();
-}
-if(page==="items"){
-c.innerHTML=`<h3>Stock Items</h3>
-${input("itemName","Item Name")}
-${input("unit","Unit (piece / box)")}
-<button onclick="task(saveItem)">Save Item</button>
-<div id="list"></div>`;
-$("list").innerHTML=renderList(await getRows("stock_items"));
-}
-if(page==="godams"){
-c.innerHTML=`<h3>Godams</h3>
-${input("godamName","Godam Name")}
-<button onclick="task(saveGodam)">Save Godam</button>
-<div id="list"></div>`;
-$("list").innerHTML=renderList(await getRows("godowns"));
-}
-if(page==="invoice"){
-const [customers,suppliers,items,godams]=await Promise.all([
-getRows("customers"),getRows("suppliers"),
-getRows("stock_items"),getRows("godowns")
-]);
-c.innerHTML=`<h3>Sale / Purchase Invoice</h3>
-<label>Type<select id="type" onchange="changePartyOptions()">
-<option value="sale">Sale</option>
-<option value="purchase">Purchase</option></select></label>
-${input("invoiceNo","Invoice Number")}
-<div id="partyOptions"></div>
-${selectBox("itemId","Item",items)}
-${selectBox("godamId","Source / Destination Godam",godams)}
-${input("qty","Quantity","number")}
-${input("price","Unit Price","number")}
-${currencySelect("invCurrency")}
-${input("invoiceDate","Date","date")}
-<button onclick="task(saveInvoice)">Save Invoice</button>
-<p class="small">Invoice steps use separate database requests. A failure can leave a partial invoice. Test first.</p>`;
-window.invoiceCustomers=customers;
-window.invoiceSuppliers=suppliers;
-changePartyOptions();
-}
-if(page==="payments"){
-const [customers,suppliers]=await Promise.all([
-getRows("customers"),getRows("suppliers")
-]);
-window.paymentCustomers=customers;
-window.paymentSuppliers=suppliers;
-c.innerHTML=`<h3>Payments In / Out</h3>
-<label>Party Type<select id="partyType" onchange="changePaymentOptions()">
-<option value="customer">Customer</option>
-<option value="supplier">Supplier</option></select></label>
-<div id="paymentParty"></div>
-<label>Direction<select id="direction">
-<option value="received">Received</option><option value="paid">Paid</option>
-</select></label>
-${input("amount","Amount","number")}
-${currencySelect("payCurrency")}
-${input("payDetails","Reference / Details")}
-${input("payDate","Date","date")}
-<button onclick="task(savePayment)">Save Payment</button>`;
-changePaymentOptions();
-}
-if(page==="partyLedger"){
-const [entries,customers,suppliers]=await Promise.all([
-getRows("party_ledger_entries"),getRows("customers"),getRows("suppliers")
-]);
-const names={};
-customers.forEach(x=>names["customer:"+x.id]=x.name);
-suppliers.forEach(x=>names["supplier:"+x.id]=x.name);
-c.innerHTML=`<h3>Party Ledger</h3><input id="ledgerSearch" placeholder="Search party..." oninput="task(loadPartyLedger)"><div id="list"></div>`;
-window.ledgerEntries=entries.map(x=>({...x,partyName:names[x.party_type+":"+x.party_id]||x.party_id}));
-loadPartyLedger();
-}
-if(page==="stockLedger"){
-const [moves,items,godams]=await Promise.all([
-getRows("stock_movements"),getRows("stock_items"),getRows("godowns")
-]);
-const im=Object.fromEntries(items.map(x=>[x.id,x.name]));
-const gm=Object.fromEntries(godams.map(x=>[x.id,x.name]));
-c.innerHTML=`<h3>Stock Movement Ledger</h3><div class="tablebox"><table>
-<tr><th>Date</th><th>Godam</th><th>Item</th><th>Movement</th><th>Qty</th></tr>
-${moves.map(x=>`<tr><td>${safe(x.created_at||"")}</td>
-<td>${safe(gm[x.godown_id]||x.godown_id)}</td>
-<td>${safe(im[x.item_id]||x.item_id)}</td>
-<td>${safe(x.movement_type)}</td><td>${cash(x.quantity)}</td></tr>`).join("")}
-</table></div>`;
-}
-if(page==="cashLedger"){
-const d=await getRows("cash_movements","movement_date");
-c.innerHTML=`<h3>Cash Ledger</h3><div class="tablebox"><table>
-<tr><th>Date</th><th>Currency</th><th>Type</th><th>Amount</th><th>Reference</th></tr>
-${d.map(x=>`<tr><td>${safe(x.movement_date||"")}</td>
-<td>${safe(x.currency||"")}</td><td>${safe(x.movement_type||"")}</td>
-<td>${cash(x.amount)}</td><td>${safe(x.reference||"")}</td></tr>`).join("")}
-</table></div>`;
-}
-if(page==="exchange"){
-c.innerHTML=`<h3>USD / AFN Exchange</h3>
-<label>Direction<select id="exchangeDirection">
-<option value="USD_AFN">USD to AFN</option>
-<option value="AFN_USD">AFN to USD</option></select></label>
-${input("exchangeAmount","Amount","number")}
-${input("exchangeRate","Rate (AFN per USD)","number")}
-${input("exchangeRef","Details")}
-<button onclick="task(saveExchange)">Save Exchange</button>`;
-}
-if(page==="reports"){
-const [a,b,d,e,f,g]=await Promise.all([
-getRows("invoices"),getRows("customers"),getRows("suppliers"),
-getRows("stock_items"),getRows("cash_movements"),getRows("stock_movements")
-]);
-c.innerHTML=`<h3>Reports</h3><div class="grid">
-${stat("Invoices",a.length)}${stat("Customers",b.length)}
-${stat("Suppliers",d.length)}${stat("Stock Items",e.length)}
-${stat("Cash Movements",f.length)}${stat("Stock Movements",g.length)}
-</div><button onclick="window.print()">Print / Save PDF</button>
-<p class="small">Counts are not a verified profit-and-loss report.</p>`;
-}
-}catch(e){
-c.innerHTML=`<h3>Database Error</h3><p>${safe(e.message||e)}</p>
-<p class="small">Check the existing table/column names and Supabase access policies. No tables were reset.</p>`;
-}
-}
-function stat(label,n){return `<div class="card"><div>${safe(label)}</div><h2>${safe(n)}</h2></div>`}
-async function saveParty(){
-if(!v("name"))throw Error("Name is required");
-await addRecord(window.partyTable,{
-name:v("name"),phone:v("phone")||null,address:v("address")||null,
-opening_balance:Number(v("opening")||0),currency:v("currency")
-});
-alert("Saved");await showPage(currentPage);
-}
-async function loadPartyList(){
-const d=await getRows(window.partyTable);
-const term=(v("filter")||"").toLowerCase();
-$("list").innerHTML=renderList(d.filter(x=>JSON.stringify(x).toLowerCase().includes(term)));
-}
-async function saveItem(){
-if(!v("itemName"))throw Error("Item name is required");
-await addRecord("stock_items",{name:v("itemName"),unit:v("unit")||"piece"});
-alert("Saved");await showPage("items");
-}
-async function saveGodam(){
-if(!v("godamName"))throw Error("Godam name is required");
-await addRecord("godowns",{name:v("godamName")});
-alert("Saved");await showPage("godams");
-}
-function changePartyOptions(){
-const list=v("type")==="sale"?window.invoiceCustomers:window.invoiceSuppliers;
-$("partyOptions").innerHTML=selectBox("partyId","Party",list||[]);
-}
-function changePaymentOptions(){
-const list=v("partyType")==="customer"?window.paymentCustomers:window.paymentSuppliers;
-$("paymentParty").innerHTML=selectBox("paymentPartyId","Party",list||[]);
-}
-async function saveInvoice(){
-const type=v("type"),qty=Number(v("qty")),price=Number(v("price"));
-if(!v("partyId")||!v("itemId")||!v("godamId"))throw Error("Select party, item and godam.");
-if(qty<=0||price<0||!Number.isFinite(qty)||!Number.isFinite(price))throw Error("Invalid quantity or price.");
-const partyTable=type==="sale"?"customers":"suppliers";
-const {data:party,error:pe}=await db.from(partyTable).select("*").eq("id",v("partyId")).single();
-if(pe)throw pe;
-if(type==="sale"){
-const {data:moves,error:me}=await db.from("stock_movements").select("*").eq("item_id",v("itemId")).eq("godown_id",v("godamId"));
-if(me)throw me;
-const balance=(moves||[]).reduce((s,x)=>s+(x.movement_type==="in"?Number(x.quantity):x.movement_type==="out"?-Number(x.quantity):0),0);
-if(balance<qty)throw Error("Insufficient recorded stock. Available: "+balance);
-}
-const total=qty*price;
-const {data:inv,error:ie}=await db.from("invoices").insert({
-invoice_type:type,invoice_number:v("invoiceNo")||null,party_name:party.name,
-godown_id:v("godamId"),invoice_date:v("invoiceDate")||new Date().toISOString().slice(0,10),
-currency:v("invCurrency"),total
-}).select().single();
-if(ie)throw ie;
-await addRecord("invoice_lines",{invoice_id:inv.id,item_id:v("itemId"),quantity:qty,unit_price:price});
-await addRecord("stock_movements",{item_id:v("itemId"),godown_id:v("godamId"),movement_type:type==="sale"?"out":"in",quantity:qty,reference:v("invoiceNo")||inv.id});
-await addRecord("party_ledger_entries",{party_type:type==="sale"?"customer":"supplier",party_id:party.id,entry_type:type,amount:total,currency:v("invCurrency"),details:"Invoice "+(v("invoiceNo")||inv.id)});
-alert("Invoice saved. Verify all linked records.");await showPage("invoice");
-}
-async function savePayment(){
-const amount=Number(v("amount"));
-if(amount<=0||!v("paymentPartyId"))throw Error("Enter amount and select party.");
-const received=v("direction")==="received";
-const pt=v("partyType");
-await addRecord("party_ledger_entries",{
-party_type:pt,party_id:v("paymentPartyId"),
-entry_type:received?"payment_received":"payment_paid",
-amount,currency:v("payCurrency"),details:v("payDetails")||"Payment"
-});
-await addRecord("cash_movements",{
-currency:v("payCurrency"),movement_type:received?"in":"out",
-amount,reference:v("payDetails")||"Party payment",
-movement_date:v("payDate")||new Date().toISOString().slice(0,10)
-});
-alert("Payment saved. Verify both ledgers.");await showPage("payments");
-}
-async function saveExchange(){
-const amount=Number(v("exchangeAmount")),rate=Number(v("exchangeRate"));
-if(amount<=0||rate<=0)throw Error("Enter valid amount and rate.");
-const dir=v("exchangeDirection");
-const usd=dir==="USD_AFN"?amount:amount/rate;
-const afn=dir==="USD_AFN"?amount*rate:amount;
-const ref=v("exchangeRef")||"Currency exchange";
-await addRecord("cash_movements",[
-{currency:"USD",movement_type:"out",amount:usd,reference:ref+" USD"},
-{currency:"AFN",movement_type:"in",amount:afn,reference:ref+" AFN"}
-]);
-alert("Exchange saved");await showPage("exchange");
-}
-async function loadPartyLedger(){
-const term=(v("ledgerSearch")||"").toLowerCase();
-const data=(window.ledgerEntries||[]).filter(x=>String(x.partyName).toLowerCase().includes(term));
-$("list").innerHTML=`<div class="tablebox"><table>
-<tr><th>Date</th><th>Party</th><th>Entry</th><th>Amount</th><th>Currency</th><th>Details</th></tr>
-${data.map(x=>`<tr><td>${safe(x.created_at||"")}</td><td>${safe(x.partyName)}</td>
-<td>${safe(x.entry_type)}</td><td>${cash(x.amount)}</td>
-<td>${safe(x.currency||"")}</td><td>${safe(x.details||"")}</td></tr>`).join("")}
-</table></div>`;
-}
-checkSession().catch(errorMessage);
+$("partyForm").onsubmit=e=>{e.preventDefault();let o=getForm("partyForm");if(db.parties.some(p=>p.name.toLowerCase()===o.name.trim().toLowerCase()))return alert("Party already exists");db.parties.push({id:uid(),name:o.name.trim(),type:o.type,phone:o.phone,address:o.address,opening:n(o.opening),openingCurrency:o.currency});hist("Added party",{kind:"party",ref:o.name});e.target.reset();save()};
+$("itemForm").onsubmit=e=>{e.preventDefault();let o=getForm("itemForm");if(db.items.some(i=>i.name.toLowerCase()===o.name.trim().toLowerCase()))return alert("Item already exists");let i={id:uid(),name:o.name.trim(),sku:o.sku,unit:o.unit,cost:n(o.cost)};db.items.push(i);if(n(o.qty)>0){if(!godown(o.godown))return alert("Add/select a godown first");add({kind:"stock",type:"Stock In",date:today(),item:i.id,qty:n(o.qty),to:o.godown,from:"",note:"Opening stock",cost:n(o.cost),ref:"OPEN"})}else save();e.target.reset()};
+$("godownForm").onsubmit=e=>{e.preventDefault();let o=getForm("godownForm");db.godowns.push({id:uid(),name:o.name.trim(),note:o.note});hist("Added godown",{kind:"godown",ref:o.name});e.target.reset();save()};
+$("accountForm").onsubmit=e=>{e.preventDefault();let o=getForm("accountForm");db.accounts.push({id:uid(),name:o.name.trim(),type:o.type,currency:o.currency,opening:n(o.opening)});hist("Added account",{kind:"account",ref:o.name});e.target.reset();save()};
+$("invoiceForm").onsubmit=e=>{e.preventDefault();let o=getForm("invoiceForm"),total=n(o.qty)*n(o.rate),net=total-n(o.discount);if(n(o.discount)>total)return alert("Discount cannot exceed total");if(n(o.paid)>net)return alert("Paid amount exceeds net invoice");if(!party(o.party)||!item(o.item)||!godown(o.godown))return alert("Select party, item and godown");if(o.kind==="Sale"&&stockQty(o.item,o.godown)<n(o.qty))return alert("Insufficient stock in selected godown");if(n(o.paid)>0&&!account(o.account))return alert("Select payment account");if(n(o.paid)>0&&account(o.account).currency!==o.payCurrency)return alert("Payment currency must match account currency");add({kind:"invoice",invoiceKind:o.kind,date:o.date,party:o.party,item:o.item,qty:n(o.qty),rate:n(o.rate),currency:o.currency,discount:n(o.discount),paid:n(o.paid),payCurrency:o.payCurrency,payRate:n(o.payRate),account:o.account,from:o.kind==="Sale"?o.godown:"",to:o.kind==="Purchase"?o.godown:"",ref:o.ref,note:o.note});e.target.reset();e.target.elements.date.value=today()};
+$("paymentForm").onsubmit=e=>{e.preventDefault();let o=getForm("paymentForm"),a=account(o.account);if(!party(o.party)||!a)return alert("Select party and account");if(a.currency!==o.currency)return alert("Payment currency must match account currency");add({kind:"payment",...o,amount:n(o.amount)});e.target.reset();e.target.elements.date.value=today()};
+$("stockForm").onsubmit=e=>{e.preventDefault();let o=getForm("stockForm"),q=n(o.qty);if(!item(o.item))return alert("Select item");if(["Stock Out","Manufacturing Use","Transfer"].includes(o.type)&&(!godown(o.from)||stockQty(o.item,o.from)<q))return alert("Insufficient stock or missing source godown");if(["Stock In","Return In"].includes(o.type)&&!godown(o.to))return alert("Select destination godown");if(o.type==="Transfer"&&(!godown(o.to)||o.to===o.from))return alert("Select a different destination godown");add({kind:"stock",...o,qty:q,cost:n(o.cost)});e.target.reset();e.target.elements.date.value=today()};
+$("transferForm").onsubmit=e=>{e.preventDefault();let o=getForm("transferForm"),a=account(o.fromAccount),b=account(o.toAccount);if(!a||!b)return alert("Select both accounts");if(a.currency!==o.fromCurrency||b.currency!==o.toCurrency)return alert("Account currency mismatch");if(o.fromCurrency===o.toCurrency)return alert("Choose different currencies");if(acctBal(a.id)<n(o.amount))return alert("Insufficient source balance");add({kind:"transfer",...o,amount:n(o.amount),rate:n(o.rate),received:n(o.amount)*n(o.rate)});e.target.reset();e.target.elements.date.value=today()};
+$("expenseForm").onsubmit=e=>{e.preventDefault();let o=getForm("expenseForm"),a=account(o.account);if(!a||a.currency!==o.currency)return alert("Choose account in same currency");if(acctBal(a.id)<n(o.amount))return alert("Insufficient account balance");add({kind:"expense",...o,amount:n(o.amount)});e.target.reset();e.target.elements.date.value=today()};
+function delEntry(id){let t=db.tx.find(t=>t.id===id);if(!t||t.void)return;if(confirm("Delete this transaction? Its effects will be removed from calculated balances and stock.")){t.void=true;hist("Deleted",t);save()}}
+function reverseEntry(id){let t=db.tx.find(t=>t.id===id);if(!t||t.void)return;if(confirm("Reverse this entire transaction?")){t.void=true;hist("Reversed",t);save()}}
+function editEntry(id){let t=db.tx.find(t=>t.id===id);if(!t||t.void)return;alert("To avoid losing linked balances, use Reverse / Delete, then enter the corrected transaction. This demo does not offer safe in-place editing of every transaction type.");}
+function stockLedger(){let iid=$("ledgerItem").value,gid=$("ledgerGodown").value;if(!iid||!gid)return alert("Select item and godown");let b=0,rows=[];active().filter(t=>(t.kind==="stock"&&t.item===iid)||(t.kind==="invoice"&&t.item===iid)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>{let delta=0;if(t.kind==="invoice"){if(t.invoiceKind==="Sale"&&t.from===gid)delta=-n(t.qty);if(t.invoiceKind==="Purchase"&&t.to===gid)delta=n(t.qty)}else{if(["Stock In","Return In"].includes(t.type)&&t.to===gid)delta=n(t.qty);if(["Stock Out","Manufacturing Use"].includes(t.type)&&t.from===gid)delta=-n(t.qty);if(t.type==="Transfer"){if(t.from===gid)delta-=n(t.qty);if(t.to===gid)delta+=n(t.qty)}}if(delta){b+=delta;rows.push([esc(t.date),esc(t.kind==="invoice"?t.invoiceKind:t.type),esc(desc(t)),delta,b])}});$("stockLedgerResult").innerHTML=`<p>Current balance: <b>${b}</b></p>`+table(["Date","Movement","Description","In / Out","Balance"],rows)}
+function showPartyLedger(){let p=party($("partyLedgerSelect").value);if(!p)return alert("Select party");let rows=[];CUR.forEach(c=>rows.push([esc("Opening"),"Opening balance",esc(c),fmt(p.openingCurrency===c?p.opening:0,c)]));active().filter(t=>t.party===p.id&&["invoice","payment"].includes(t.kind)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>rows.push([esc(t.date),esc(desc(t)),esc(t.currency),fmt(t.kind==="invoice"?n(t.qty)*n(t.rate)-n(t.discount):n(t.amount),t.currency)]));$("partyLedgerResult").innerHTML=`<p><b>${esc(p.name)}</b> · ${esc(p.address)} · ${esc(p.phone)}</p>`+table(["Date","Details","Currency","Amount"],rows)}
+function whatsappLedger(){let p=party($("partyLedgerSelect").value);if(!p)return alert("Select party");if(!p.phone)return alert("Add phone number first");let msg=`Mastan Shah Software\nParty: ${p.name}\nAddress: ${p.address||"-"}\n\n`+active().filter(t=>t.party===p.id&&["invoice","payment"].includes(t.kind)).map(t=>t.date+" | "+desc(t)).join("\n");window.open("https://wa.me/"+p.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(msg),"_blank")}
+function runReport(){let k=$("reportType").value,q=$("reportSearch").value.toLowerCase(),f=$("fromDate").value,to=$("toDate").value;let arr=active().filter(t=>(k==="all"||t.kind===k)&&(!f||t.date>=f)&&(!to||t.date<=to)&&(!q||desc(t).toLowerCase().includes(q)||(t.ref||"").toLowerCase().includes(q)));$("reportResult").innerHTML=table(["Date","Type","Ref","Details","Currency","Amount","Actions"],arr.sort((a,b)=>a.date.localeCompare(b.date)).map(t=>[esc(t.date),esc(t.kind),esc(t.ref||""),esc(desc(t)),esc(t.currency||""),esc(t.amount??(t.qty??"")),rowActions(t)]))}
+function roznamcha(){let d=$("rozDate").value||today(),arr=active().filter(t=>t.date===d);$("rozResult").innerHTML=`<h3>${esc(d)} — ${arr.length} entries</h3>`+table(["Type","Details","Amount"],arr.map(t=>[esc(t.kind),esc(desc(t)),fmt(t.amount??(t.qty??0),t.currency||"USD")]))}
+function globalSearch(){let q=$("globalSearch").value.toLowerCase(),r=[];db.parties.filter(x=>(x.name+" "+x.phone+" "+x.address).toLowerCase().includes(q)).forEach(x=>r.push("Party: "+x.name));db.items.filter(x=>x.name.toLowerCase().includes(q)).forEach(x=>r.push("Item: "+x.name));db.godowns.filter(x=>x.name.toLowerCase().includes(q)).forEach(x=>r.push("Godown: "+x.name));db.accounts.filter(x=>x.name.toLowerCase().includes(q)).forEach(x=>r.push("Account: "+x.name));$("searchResult").innerHTML=r.map(esc).join("<br>")||"No matches"}
+function downloadCSV(){let rows=[["Date","Type","Reference","Details","Currency","Amount"],...active().map(t=>[t.date,t.kind,t.ref||"",desc(t),t.currency||"",t.amount??t.qty??""])];let csv=rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="mastan-shah-report.csv";a.click();URL.revokeObjectURL(a.href)}
+function backup(){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));a.download="mastan-shah-backup.json";a.click();URL.revokeObjectURL(a.href)}
+function restore(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.tx||!x.parties)throw 0;if(!confirm("Replace this browser's current data with the backup?"))return;db=x;save();alert("Restored")}catch(_){alert("Invalid backup file")}};r.readAsText(f)}
+function clearAll(){if(confirm("Clear all data in this browser? Download backup first.")&&confirm("Confirm permanent deletion?")){db=fresh();save()}}
+function init(){render();["invoiceForm","paymentForm","stockForm","transferForm","expenseForm"].forEach(resetForm);$("rozDate").value=today();showPage("dashboard")}
+init();
 </script>
 </body>
 </html>
