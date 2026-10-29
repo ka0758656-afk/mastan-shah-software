@@ -327,7 +327,32 @@ function deleteCustomBank(name){if(!requireAdmin())return;const n=String(name||'
 function deleteCustomGodam(name){if(!requireAdmin())return;const n=String(name||'').trim();if(!n||DEFAULT_GODAMS.some(x=>String(x).toLowerCase()===n.toLowerCase()))return;yesNoConfirm(`Delete godam ${n}? Existing transactions remain in history.`,()=>{d.godams=(d.godams||[]).filter(x=>String(x).toLowerCase()!==n.toLowerCase());syncGodams();addHistory('Custom godam deleted','godam',n);save();updateLists();renderGodamList();renderAll()})}
 function editPerson(kind,id){if(!requireAdmin())return;let p=(kind==='customer'?d.customers:d.suppliers).find(x=>x.id===id);if(!p)return;let pre=kind==='customer'?'cust':'sup';$(pre+'Id').value=p.id;$(pre+'Name').value=p.name;$(pre+'Phone').value=p.phone;$(pre+'Address').value=p.address;$(pre+'Opening').value=p.opening;switchTab('people')}
 function renderStock(){let c=compute(),q=($('stockSearch').value||'').trim().toLowerCase();let totals=GODAMS.map(g=>{let items=d.products.map(p=>({p,v:Number(c.stock[g+'||'+p]||0)})).filter(x=>x.v!==0&&(!q||pMatch(x.p,q)||g.toLowerCase().includes(q)));if(q&&!g.toLowerCase().includes(q)&&!items.length)return '';return `<div class="card" style="margin-bottom:10px"><h3>${esc(g)} — Separate Stock Ledger</h3><div class="tableWrap"><table><tr><th>Product</th><th>Balance Qty</th><th>Ledger</th></tr>${items.length?items.map(x=>`<tr><td><b>${esc(x.p)}</b></td><td><b>${x.v}</b></td><td><button type="button" class="btn" data-stockledger="${esc(g)}||${esc(x.p)}">Open Ledger</button></td></tr>`).join(''):'<tr><td colspan="3">No matching stock in this godam</td></tr>'}</table></div></div>`}).join('');$('stockTable').innerHTML=totals||'<div class="empty">No matching stock</div>';}function pMatch(p,q){return String(p).toLowerCase().includes(q)}function openStockLedger(g,p){let rows=[];let balance=0;const txs=d.tx.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));for(const x of txs){let inn=0,out=0,desc=txLabel(x);if(x.product===p&&x.godam===g){if(x.type==='purchase'){inn=+x.qty||0;desc='Purchase '+(x.invoice||'')}else if(x.type==='sale'){out=+x.qty||0;desc='Sale '+(x.invoice||'')}else if(x.type==='stockMove'){if(x.direction==='in'||x.mode==='in')inn=+x.qty||0;else out=+x.qty||0;desc=x.note||'Stock IN/OUT'}else if(x.type==='production'){if(x.godam===g){inn=+x.qty||0;desc='Production'}}}else if(x.type==='transfer'&&x.product===p){if(x.from===g){out=+x.qty||0;desc='Transfer to '+x.to}else if(x.to===g){inn=+x.qty||0;desc='Transfer from '+x.from}}else continue;if(!inn&&!out)continue;balance+=inn-out;rows.push(`<tr><td>${esc(x.date||'')}</td><td>${esc(desc)}</td><td>${inn||''}</td><td>${out||''}</td><td><b>${balance}</b></td></tr>`)}$('stockTable').insertAdjacentHTML('afterbegin',`<div class="panel" id="stockLedgerPanel"><h3>${esc(p)} — ${esc(g)} Ledger</h3><div class="tableWrap"><table><tr><th>Date</th><th>Details</th><th>IN</th><th>OUT</th><th>Balance</th></tr>${rows.join('')||'<tr><td colspan="5">No movement history found.</td></tr>'}</table></div><button type="button" class="btn" data-close-stockledger>Close Ledger</button></div>`)}
-function journalDescription(x){const v=String(x?.description??x?.note??x?.desc??'').trim();return v||String(x?.name??'').trim()||txLabel(x)}
+
+function journalDescription(x) {
+  if (!x) return '';
+
+  // Manual Roznamcha note: show exactly what was entered
+  if (x.type === 'journal') {
+    return String(x.desc || x.description || x.note || '').trim()
+      || 'Roznamcha Note';
+  }
+
+  // Other entries: use saved description first
+  const description = String(
+    x.description || x.note || x.desc || ''
+  ).trim();
+
+  if (description) return description;
+
+  if (x.type === 'customerPayment') return 'Customer Received / Payment';
+  if (x.type === 'supplierPayment') return 'Supplier Payment';
+  if (x.type === 'bankTransfer') return 'Bank Transfer';
+  if (x.type === 'sale') return 'Sale';
+  if (x.type === 'purchase') return 'Purchase';
+  if (x.type === 'expense') return 'Expense';
+
+  return String(x.name || x.product || txLabel(x) || 'Entry');
+}
 
 function renderJournal() {
   const f = $('journalFilter')?.value || 'all';
