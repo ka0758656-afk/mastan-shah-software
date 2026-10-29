@@ -328,8 +328,81 @@ function deleteCustomGodam(name){if(!requireAdmin())return;const n=String(name||
 function editPerson(kind,id){if(!requireAdmin())return;let p=(kind==='customer'?d.customers:d.suppliers).find(x=>x.id===id);if(!p)return;let pre=kind==='customer'?'cust':'sup';$(pre+'Id').value=p.id;$(pre+'Name').value=p.name;$(pre+'Phone').value=p.phone;$(pre+'Address').value=p.address;$(pre+'Opening').value=p.opening;switchTab('people')}
 function renderStock(){let c=compute(),q=($('stockSearch').value||'').trim().toLowerCase();let totals=GODAMS.map(g=>{let items=d.products.map(p=>({p,v:Number(c.stock[g+'||'+p]||0)})).filter(x=>x.v!==0&&(!q||pMatch(x.p,q)||g.toLowerCase().includes(q)));if(q&&!g.toLowerCase().includes(q)&&!items.length)return '';return `<div class="card" style="margin-bottom:10px"><h3>${esc(g)} — Separate Stock Ledger</h3><div class="tableWrap"><table><tr><th>Product</th><th>Balance Qty</th><th>Ledger</th></tr>${items.length?items.map(x=>`<tr><td><b>${esc(x.p)}</b></td><td><b>${x.v}</b></td><td><button type="button" class="btn" data-stockledger="${esc(g)}||${esc(x.p)}">Open Ledger</button></td></tr>`).join(''):'<tr><td colspan="3">No matching stock in this godam</td></tr>'}</table></div></div>`}).join('');$('stockTable').innerHTML=totals||'<div class="empty">No matching stock</div>';}function pMatch(p,q){return String(p).toLowerCase().includes(q)}function openStockLedger(g,p){let rows=[];let balance=0;const txs=d.tx.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));for(const x of txs){let inn=0,out=0,desc=txLabel(x);if(x.product===p&&x.godam===g){if(x.type==='purchase'){inn=+x.qty||0;desc='Purchase '+(x.invoice||'')}else if(x.type==='sale'){out=+x.qty||0;desc='Sale '+(x.invoice||'')}else if(x.type==='stockMove'){if(x.direction==='in'||x.mode==='in')inn=+x.qty||0;else out=+x.qty||0;desc=x.note||'Stock IN/OUT'}else if(x.type==='production'){if(x.godam===g){inn=+x.qty||0;desc='Production'}}}else if(x.type==='transfer'&&x.product===p){if(x.from===g){out=+x.qty||0;desc='Transfer to '+x.to}else if(x.to===g){inn=+x.qty||0;desc='Transfer from '+x.from}}else continue;if(!inn&&!out)continue;balance+=inn-out;rows.push(`<tr><td>${esc(x.date||'')}</td><td>${esc(desc)}</td><td>${inn||''}</td><td>${out||''}</td><td><b>${balance}</b></td></tr>`)}$('stockTable').insertAdjacentHTML('afterbegin',`<div class="panel" id="stockLedgerPanel"><h3>${esc(p)} — ${esc(g)} Ledger</h3><div class="tableWrap"><table><tr><th>Date</th><th>Details</th><th>IN</th><th>OUT</th><th>Balance</th></tr>${rows.join('')||'<tr><td colspan="5">No movement history found.</td></tr>'}</table></div><button type="button" class="btn" data-close-stockledger>Close Ledger</button></div>`)}
 function journalDescription(x){const v=String(x?.description??x?.note??x?.desc??'').trim();return v||String(x?.name??'').trim()||txLabel(x)}
-function renderJournal(){let f=$('journalFilter')?.value||'all',q=($('journalProductFilter')?.value||'').trim().toLowerCase(),g=$('journalGodamFilter')?.value||'';let xs=d.tx.filter(x=>inRange(x)&&(f==='all'||(f==='payment'&&['customerPayment','supplierPayment','bankTransfer'].includes(x.type))||(f==='stock'&&['stockMove','production','transfer','openingStock'].includes(x.type))||(f==='fx'&&['fx','currencyExchange','exchange'].includes(x.type))||(f==='currency'&&x.type==='currency')||((f==='all')&&!['currency','customerPayment','supplierPayment','bankTransfer'].includes(x.type))||x.type===f)&&(!q||String(x.product||x.name||x.desc||x.description||'').toLowerCase().includes(q))&&(!g||x.godam===g||x.from===g||x.to===g)).slice().reverse();$('journalList').innerHTML=`<div class="tableWrap"><table><tr><th>Date</th><th>Description</th><th>Party</th><th>Product</th><th>IN</th><th>OUT</th><th>Cash IN</th><th>Cash OUT</th><th>Bank</th><th>Khata</th><th>Actions</th></tr>${xs.map(journalRow).join('')}</table></div>`}
-function printJournalPdf(){const xs=d.tx.filter(inRange).slice().reverse();const rows=xs.map(x=>{let inn='',out='',ci='',co='',bank='',kh='';if(x.type==='sale'){out=x.qty;let cash=0,bankParts=[],k=0;(x.pays||[]).forEach(p=>p.account==='Cash'?cash+=p.amount:p.account==='Customer Khata'?k+=p.amount:appendBank(bankParts,p.account,p.amount));ci=money(cash);bank=bankParts.join(' | ');kh=money(k)}else if(x.type==='purchase'){inn=x.qty;let cash=0,bankParts=[],k=0;(x.pays||[]).forEach(p=>p.account==='Cash'?cash+=p.amount:p.account==='Supplier Khata'?k+=p.amount:appendBank(bankParts,p.account,-p.amount));co=money(cash);bank=bankParts.join(' | ');kh=money(k)}else if(x.type==='customerPayment'){const a=+x.amount||0,give=String(x.direction||'receive')==='give';if(x.account==='Cash')ci=give?'-'+money(a):'+'+money(a);else bank=signedAmount(x.account,give?-a:a);kh=(give?'+':'-')+money(a)}else if(x.type==='supplierPayment'){const a=+x.amount||0,direction=String(x.direction||'pay');if(direction==='account'){kh='+'+money(a)}else{const receive=direction==='receive';if(x.account==='Cash')co=receive?'+'+money(a):'-'+money(a);else bank=signedAmount(x.account,receive?a:-a);kh=(receive?'+':'-')+money(a)}}else if(x.type==='bankTransfer'){if(x.from==='Cash'&&x.to!=='Cash'){ci='-'+money(x.amount);bank=signedAmount(x.to,x.amount)}else if(x.to==='Cash'&&x.from!=='Cash'){co='-'+money(x.amount);bank=signedAmount(x.from,-x.amount)}else if(x.from!=='Cash'&&x.to!=='Cash'){bank=x.from+' → '+x.to+': '+money(x.amount)}}else if(x.type==='expense'){co=x.account==='Cash'?money(x.amount):'';bank=x.account!=='Cash'?signedAmount(x.account,-(+x.amount||0)):' '}else if(x.type==='stockMove'){x.dir==='in'?inn=x.qty:out=x.qty}else if(x.type==='production'){inn=x.qty;out=(x.items||[]).reduce((a,i)=>a+i.qty*x.qty,0)}else if(x.type==='partyAdjustment'){const a=+x.amount||0,plus=String(x.direction||'minus')==='plus';kh=(plus?'+':'-')+money(a)}else if(x.type==='partyAdjustment'){const a=+x.amount||0,plus=String(x.direction||'minus')==='plus';kh=(plus?'+':'-')+money(a)}else if(x.type==='journal'){x.jtype==='cashin'?ci=money(x.amount):x.jtype==='cashout'?co=money(x.amount):''}return `<tr><td>${esc(x.date)}</td><td>${esc(journalDescription(x))}</td><td>${esc(x.customer||x.supplier||'')}</td><td>${esc(x.product||x.name||x.desc||'')}</td><td>${inn}</td><td>${out}</td><td>${ci}</td><td>${co}</td><td>${bank}</td><td>${kh}</td></tr>`}).join('');const w=window.open('','_blank');if(!w){alert('Browser blocked popup. Allow popups.');return}w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Roznamcha</title><style>body{font-family:Arial;padding:18px;color:#111}h1{margin:0 0 4px}p{margin:4px 0 12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:6px;font-size:9px;text-align:left}th{background:#eee}</style></head><body><h1>Mastan Shah Software — Roznamcha</h1><p>Date Range: ${esc($('from').value)} to ${esc($('to').value)}</p><table><tr><th>Date</th><th>Description</th><th>Party</th><th>Product</th><th>IN</th><th>OUT</th><th>Cash IN</th><th>Cash OUT</th><th>Bank</th><th>Account</th></tr>${rows||'<tr><td colspan="10">No entries</td></tr>'}</table><script>setTimeout(()=>window.print(),300)<\/script></body></html>`);w.document.close()}
+
+function renderJournal() {
+  const f = $('journalFilter')?.value || 'all';
+  const q = ($('journalProductFilter')?.value || '')
+    .trim().toLowerCase();
+  const g = $('journalGodamFilter')?.value || '';
+
+  const paymentTypes = [
+    'customerPayment', 'supplierPayment', 'bankTransfer'
+  ];
+  const stockTypes = [
+    'stockMove', 'production', 'transfer', 'openingStock'
+  ];
+  const currencyTypes = [
+    'fx', 'currencyExchange', 'exchange', 'currency'
+  ];
+
+  const allowedTypes = [
+    'sale', 'purchase',
+    ...paymentTypes, ...stockTypes,
+    'expense', 'journal', 'partyAdjustment',
+    'saleReturn', 'purchaseReturn',
+    ...currencyTypes
+  ];
+
+  const xs = (Array.isArray(d.tx) ? d.tx : []).filter(x => {
+    if (!x || !allowedTypes.includes(x.type)) return false;
+    if (!inRange(x)) return false;
+
+    if (f === 'sale' &&
+        !['sale', 'saleReturn'].includes(x.type)) return false;
+    if (f === 'purchase' &&
+        !['purchase', 'purchaseReturn'].includes(x.type)) return false;
+    if (f === 'payment' && !paymentTypes.includes(x.type)) return false;
+    if (f === 'stock' && !stockTypes.includes(x.type)) return false;
+    if (f === 'expense' && x.type !== 'expense') return false;
+    if (['fx', 'currency'].includes(f) &&
+        !currencyTypes.includes(x.type)) return false;
+
+    const text = [
+      x.product, x.name, x.desc, x.description, x.party
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    if (q && !text.includes(q)) return false;
+    if (g && x.godam !== g && x.from !== g && x.to !== g)
+      return false;
+
+    return true;
+  }).slice().reverse();
+
+  const rows = xs.map(x => {
+    const row = journalRow(x);
+    return typeof row === 'string' && row.trim() ? row : '';
+  }).filter(Boolean);
+
+  $('journalList').innerHTML = `
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Description</th><th>Party</th>
+            <th>Product</th><th>IN</th><th>OUT</th>
+            <th>Cash IN</th><th>Cash OUT</th><th>Bank</th>
+            <th>Khata</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.length
+            ? rows.join('')
+            : '<tr><td colspan="11">No entries found</td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+
 function journalRow(x){let inn='',out='',ci='',co='',bank='',kh='';if(x.type==='sale'){out=x.qty;let cash=0,bankParts=[],k=0;(x.pays||[]).forEach(p=>p.account==='Cash'?cash+=p.amount:p.account==='Customer Khata'?k+=p.amount:appendBank(bankParts,p.account,p.amount));ci=money(cash);bank=bankParts.join(' | ');kh=money(k)}else if(x.type==='purchase'){inn=x.qty;let cash=0,bankParts=[],k=0;(x.pays||[]).forEach(p=>p.account==='Cash'?cash+=p.amount:p.account==='Supplier Khata'?k+=p.amount:appendBank(bankParts,p.account,-p.amount));co=money(cash);bank=bankParts.join(' | ');kh=money(k)}else if(x.type==='customerPayment'){const a=+x.amount||0,give=String(x.direction||'receive')==='give';if(x.account==='Cash')ci=give?'-'+money(a):'+'+money(a);else bank=signedAmount(x.account,give?-a:a);kh=(give?'+':'-')+money(a)}else if(x.type==='supplierPayment'){const a=+x.amount||0,direction=String(x.direction||'pay');if(direction==='account'){kh='+'+money(a)}else{const receive=direction==='receive';if(x.account==='Cash')co=receive?'+'+money(a):'-'+money(a);else bank=signedAmount(x.account,receive?a:-a);kh=(receive?'+':'-')+money(a)}}else if(x.type==='bankTransfer'){if(x.from==='Cash'&&x.to!=='Cash'){ci='-'+money(x.amount);bank=signedAmount(x.to,x.amount)}else if(x.to==='Cash'&&x.from!=='Cash'){co='-'+money(x.amount);bank=signedAmount(x.from,-x.amount)}else if(x.from!=='Cash'&&x.to!=='Cash'){bank=x.from+' → '+x.to+': '+money(x.amount)}}else if(x.type==='expense'){co=x.account==='Cash'?money(x.amount):'';bank=x.account!=='Cash'?signedAmount(x.account,-(+x.amount||0)):' '}else if(x.type==='stockMove'){x.dir==='in'?inn=x.qty:out=x.qty}else if(x.type==='transfer'){inn=x.qty;out=x.qty}else if(x.type==='production'){inn=x.qty;out=(x.items||[]).reduce((a,i)=>a+i.qty*x.qty,0)}else if(x.type==='partyAdjustment'){const a=+x.amount||0,plus=String(x.direction||'minus')==='plus';kh=(plus?'+':'-')+money(a)}else if(x.type==='journal'){x.jtype==='cashin'?ci=money(x.amount):x.jtype==='cashout'?co=money(x.amount):''}return `<tr><td>${x.date}</td><td>${esc(journalDescription(x))}</td><td>${esc(x.customer||x.supplier||'')}</td><td>${esc(x.product||x.name||'')}</td><td>${inn}</td><td>${out}</td><td>${ci}</td><td>${co}</td><td>${bank}</td><td>${kh}</td><td>${actions(x)}</td></tr>`}
 function renderExpense(){let xs=d.tx.filter(x=>x.type==='expense'&&inRange(x)),by={};xs.forEach(x=>by[x.account]=(by[x.account]||0)+x.amount);$('expReport').innerHTML=ACCOUNTS.map(a=>`<span class="tag">${a}: ${money(by[a]||0)}</span>`).join('')+`<div class="big">Grand Total: ${money(xs.reduce((a,x)=>a+x.amount,0))}</div>`;$('expList').innerHTML=xs.slice().reverse().map(x=>`<div class="card">${x.date} • ${esc(x.desc)} • ${money(x.amount)} • ${esc(x.account)} ${actions(x)}</div>`).join('')||'<div class="empty">No expenses</div>'}
 function renderProduction(){$('prodList').innerHTML=d.tx.filter(x=>x.type==='production').slice().reverse().map(x=>`<div class="card">${x.date} • ${esc(x.name)} × ${x.qty} • ${esc(x.godam)} • ${(x.items||[]).map(i=>esc(i.name)+' OUT '+i.qty*x.qty).join(', ')} ${actions(x)}</div>`).join('')||'<div class="empty">No production</div>'}
